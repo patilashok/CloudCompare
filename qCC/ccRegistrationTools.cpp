@@ -17,23 +17,23 @@
 
 #include "ccRegistrationTools.h"
 
-//CCLib
-#include <MeshSamplingTools.h>
+//CCCoreLib
+#include <CloudSamplingTools.h>
+#include <DistanceComputationTools.h>
+#include <Garbage.h>
 #include <GenericIndexedCloudPersist.h>
+#include <MeshSamplingTools.h>
+#include <ParallelSort.h>
 #include <PointCloud.h>
 #include <RegistrationTools.h>
-#include <DistanceComputationTools.h>
-#include <CloudSamplingTools.h>
-#include <Garbage.h>
-#include <ParallelSort.h>
 
 //qCC_db
-#include <ccHObjectCaster.h>
-#include <ccPointCloud.h>
 #include <ccGenericMesh.h>
+#include <ccHObjectCaster.h>
+#include <ccLog.h>
+#include <ccPointCloud.h>
 #include <ccProgressDialog.h>
 #include <ccScalarField.h>
-#include <ccLog.h>
 
 //system
 #include <set>
@@ -49,27 +49,27 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 								double &finalScale,
 								double& finalRMS,
 								unsigned& finalPointCount,
-								double minRMSDecrease,
-								unsigned maxIterationCount,
-								unsigned randomSamplingLimit,
-								bool removeFarthestPoints,
-								CCLib::ICPRegistrationTools::CONVERGENCE_TYPE method,
-								bool adjustScale,
-								double finalOverlapRatio/*=1.0*/,
+								const CCCoreLib::ICPRegistrationTools::Parameters& inputParameters,
 								bool useDataSFAsWeights/*=false*/,
 								bool useModelSFAsWeights/*=false*/,
-								int filters/*=CCLib::ICPRegistrationTools::SKIP_NONE*/,
-								int maxThreadCount/*=0*/,
-								QWidget* parent/*=0*/)
+								QWidget* parent/*=nullptr*/)
 {
-	//progress bar
-	ccProgressDialog pDlg(false, parent);
+	bool restoreColorState = false;
+	bool restoreSFState = false;
+	CCCoreLib::ICPRegistrationTools::Parameters params = inputParameters;
 
-	Garbage<CCLib::GenericIndexedCloudPersist> cloudGarbage;
+	//progress bar
+	QScopedPointer<ccProgressDialog> progressDlg;
+	if (parent)
+	{
+		progressDlg.reset(new ccProgressDialog(false, parent));
+	}
+
+	CCCoreLib::Garbage<CCCoreLib::GenericIndexedCloudPersist> cloudGarbage;
 
 	//if the 'model' entity is a mesh, we need to sample points on it
-	CCLib::GenericIndexedCloudPersist* modelCloud = 0;
-	ccGenericMesh* modelMesh = 0;
+	CCCoreLib::GenericIndexedCloudPersist* modelCloud = nullptr;
+	ccGenericMesh* modelMesh = nullptr;
 	if (model->isKindOf(CC_TYPES::MESH))
 	{
 		modelMesh = ccHObjectCaster::ToGenericMesh(model);
@@ -81,10 +81,10 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 	}
 
 	//if the 'data' entity is a mesh, we need to sample points on it
-	CCLib::GenericIndexedCloudPersist* dataCloud = 0;
+	CCCoreLib::GenericIndexedCloudPersist* dataCloud = nullptr;
 	if (data->isKindOf(CC_TYPES::MESH))
 	{
-		dataCloud = CCLib::MeshSamplingTools::samplePointsOnMesh(ccHObjectCaster::ToGenericMesh(data), s_defaultSampledPointsOnDataMesh, &pDlg);
+		dataCloud = CCCoreLib::MeshSamplingTools::samplePointsOnMesh(ccHObjectCaster::ToGenericMesh(data), s_defaultSampledPointsOnDataMesh, progressDlg.data());
 		if (!dataCloud)
 		{
 			ccLog::Error("[ICP] Failed to sample points on 'data' mesh!");
@@ -98,13 +98,16 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 	}
 
 	//we activate a temporary scalar field for registration distances computation
-	CCLib::ScalarField* dataDisplayedSF = 0;
-	int oldDataSfIdx = -1, dataSfIdx = -1;
+	CCCoreLib::ScalarField* dataDisplayedSF = nullptr;
+	int oldDataSfIdx = -1;
+	int dataSfIdx = -1;
 
 	//if the 'data' entity is a real ccPointCloud, we can even create a proper temporary SF for registration distances
 	if (data->isA(CC_TYPES::POINT_CLOUD))
 	{
 		ccPointCloud* pc = static_cast<ccPointCloud*>(data);
+		restoreColorState = pc->colorsShown();
+		restoreSFState = pc->sfShown();
 		dataDisplayedSF = pc->getCurrentDisplayedScalarField();
 		oldDataSfIdx = pc->getCurrentInScalarFieldIndex();
 		dataSfIdx = pc->getScalarFieldIndexByName(REGISTRATION_DISTS_SF);
@@ -129,11 +132,11 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 
 	//add a 'safety' margin to input ratio
 	static double s_overlapMarginRatio = 0.2;
-	finalOverlapRatio = std::max(finalOverlapRatio, 0.01); //1% minimum
+	params.finalOverlapRatio = std::max(params.finalOverlapRatio, 0.01); //1% minimum
 	//do we need to reduce the input point cloud (so as to be close
 	//to the theoretical number of overlapping points - but not too
 	//low so as we are not registered yet ;)
-	if (finalOverlapRatio < 1.0 - s_overlapMarginRatio)
+	if (params.finalOverlapRatio < 1.0 - s_overlapMarginRatio)
 	{
 		//DGM we can now use 'approximate' distances as SAITO algorithm is exact (but with a coarse resolution)
 		//level = 7 if < 1.000.000
@@ -144,22 +147,25 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 		int result = -1;
 		if (modelMesh)
 		{
-			CCLib::DistanceComputationTools::Cloud2MeshDistanceComputationParams c2mParams;
+			CCCoreLib::DistanceComputationTools::Cloud2MeshDistancesComputationParams c2mParams;
 			c2mParams.octreeLevel = gridLevel;
 			c2mParams.maxSearchDist = 0;
-			c2mParams.useDistanceMap = true,
+			c2mParams.useDistanceMap = true;
 			c2mParams.signedDistances = false;
 			c2mParams.flipNormals = false;
 			c2mParams.multiThread = false;
-			result = CCLib::DistanceComputationTools::computeCloud2MeshDistance(dataCloud, modelMesh, c2mParams, &pDlg);
+			result = CCCoreLib::DistanceComputationTools::computeCloud2MeshDistances(	dataCloud,
+																						modelMesh,
+																						c2mParams,
+																						progressDlg.data());
 		}
 		else
 		{
-			result = CCLib::DistanceComputationTools::computeApproxCloud2CloudDistance(	dataCloud,
-																						modelCloud,
-																						gridLevel,
-																						-1,
-																						&pDlg);
+			result = CCCoreLib::DistanceComputationTools::computeApproxCloud2CloudDistance(	dataCloud,
+																							modelCloud,
+																							gridLevel,
+																							-1,
+																							progressDlg.data());
 		}
 
 		if (result < 0)
@@ -182,25 +188,25 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 				ccLog::Error("Not enough memory!");
 				return false;
 			}
-			for (unsigned i=0; i<count; ++i)
+			for (unsigned i = 0; i < count; ++i)
 			{
 				distances[i] = dataCloud->getPointScalarValue(i);
 			}
-			
+
 			ParallelSort(distances.begin(), distances.end());
-			
-			//now look for the max value at 'finalOverlapRatio+margin' percent
-			maxSearchDist = distances[static_cast<unsigned>(std::max(1.0,count*(finalOverlapRatio+s_overlapMarginRatio)))-1];
+
+			//now look for the max value at 'finalOverlapRatio + margin' percent
+			maxSearchDist = distances[static_cast<size_t>(std::max(1.0, count*(params.finalOverlapRatio + s_overlapMarginRatio))) - 1];
 		}
 
 		//evntually select the points with distance below 'maxSearchDist'
 		//(should roughly correspond to 'finalOverlapRatio + margin' percent)
 		{
-			CCLib::ReferenceCloud* refCloud = new CCLib::ReferenceCloud(dataCloud);
+			CCCoreLib::ReferenceCloud* refCloud = new CCCoreLib::ReferenceCloud(dataCloud);
 			cloudGarbage.add(refCloud);
 			unsigned countBefore = dataCloud->size();
-			unsigned baseIncrement = static_cast<unsigned>(std::max(100.0,countBefore*finalOverlapRatio*0.05));
-			for (unsigned i=0; i<countBefore; ++i)
+			unsigned baseIncrement = static_cast<unsigned>(std::max(100.0, countBefore*params.finalOverlapRatio*0.05));
+			for (unsigned i = 0; i < countBefore; ++i)
 			{
 				if (dataCloud->getPointScalarValue(i) <= maxSearchDist)
 				{
@@ -221,26 +227,26 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 			ccLog::Print(QString("[ICP][Partial overlap] Selecting %1 points out of %2 (%3%) for registration").arg(countAfter).arg(countBefore).arg(static_cast<int>(100*keptRatio)));
 
 			//update the relative 'final overlap' ratio
-			finalOverlapRatio /= keptRatio;
+			params.finalOverlapRatio /= keptRatio;
 		}
 	}
 
 	//weights
-	CCLib::ScalarField* modelWeights = 0;
-	CCLib::ScalarField* dataWeights = 0;
+	params.modelWeights = nullptr;
+	params.dataWeights = nullptr;
 	{
 		if (!modelMesh && useModelSFAsWeights)
 		{
-			if (modelCloud == dynamic_cast<CCLib::GenericIndexedCloudPersist*>(model) && model->isA(CC_TYPES::POINT_CLOUD))
+			if (modelCloud == dynamic_cast<CCCoreLib::GenericIndexedCloudPersist*>(model) && model->isA(CC_TYPES::POINT_CLOUD))
 			{
 				ccPointCloud* pc = static_cast<ccPointCloud*>(model);
-				modelWeights = pc->getCurrentDisplayedScalarField();
-				if (!modelWeights)
+				params.modelWeights = pc->getCurrentDisplayedScalarField();
+				if (!params.modelWeights)
 					ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but model has no displayed scalar field!");
 			}
 			else
 			{
-				ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but only point clouds scalar fields can be used as weights!");
+				ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but only point cloud scalar fields can be used as weights!");
 			}
 		}
 
@@ -248,49 +254,37 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 		{
 			if (!dataDisplayedSF)
 			{
-				if (dataCloud == (CCLib::GenericIndexedCloudPersist*)data && data->isA(CC_TYPES::POINT_CLOUD))
+				if (dataCloud == ccHObjectCaster::ToPointCloud(data))
 					ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but data has no displayed scalar field!");
 				else
-					ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but inly point clouds scalar fields can be used as weights!");
+					ccLog::Warning("[ICP] 'useDataSFAsWeights' is true but only point cloud scalar fields can be used as weights!");
 			}
 			else
-				dataWeights = dataDisplayedSF;
+			{
+				params.dataWeights = dataDisplayedSF;
+			}
 		}
 	}
 
-	CCLib::ICPRegistrationTools::RESULT_TYPE result;
-	CCLib::PointProjectionTools::Transformation transform;
-	CCLib::ICPRegistrationTools::Parameters params;
-	{
-		params.convType = method;
-		params.minRMSDecrease = minRMSDecrease;
-		params.nbMaxIterations = maxIterationCount;
-		params.adjustScale = adjustScale;
-		params.filterOutFarthestPoints = removeFarthestPoints;
-		params.samplingLimit = randomSamplingLimit;
-		params.finalOverlapRatio = finalOverlapRatio;
-		params.modelWeights = modelWeights;
-		params.dataWeights = dataWeights;
-		params.transformationFilters = filters;
-		params.maxThreadCount = maxThreadCount;
-	}
+	CCCoreLib::ICPRegistrationTools::RESULT_TYPE result;
+	CCCoreLib::PointProjectionTools::Transformation transform;
 
-	result = CCLib::ICPRegistrationTools::Register(	modelCloud,
-													modelMesh,
-													dataCloud,
-													params,
-													transform,
-													finalRMS,
-													finalPointCount,
-													static_cast<CCLib::GenericProgressCallback*>(&pDlg));
+	result = CCCoreLib::ICPRegistrationTools::Register(	modelCloud,
+														modelMesh,
+														dataCloud,
+														params,
+														transform,
+														finalRMS,
+														finalPointCount,
+														static_cast<CCCoreLib::GenericProgressCallback*>(progressDlg.data()));
 
-	if (result >= CCLib::ICPRegistrationTools::ICP_ERROR)
+	if (result >= CCCoreLib::ICPRegistrationTools::ICP_ERROR)
 	{
 		ccLog::Error("Registration failed: an error occurred (code %i)",result);
 	}
-	else if (result == CCLib::ICPRegistrationTools::ICP_APPLY_TRANSFO)
+	else if (result == CCCoreLib::ICPRegistrationTools::ICP_APPLY_TRANSFO)
 	{
-		transMat = FromCCLibMatrix<PointCoordinateType, float>(transform.R, transform.T, transform.s);
+		transMat = FromCCLibMatrix<double, float>(transform.R, transform.T, transform.s);
 		finalScale = transform.s;
 	}
 
@@ -301,8 +295,9 @@ bool ccRegistrationTools::ICP(	ccHObject* data,
 		ccPointCloud* pc = static_cast<ccPointCloud*>(data);
 		pc->setCurrentScalarField(oldDataSfIdx);
 		pc->deleteScalarField(dataSfIdx);
-		dataSfIdx = -1;
+		pc->showColors(restoreColorState);
+		pc->showSF(restoreSFState);
 	}
 
-	return (result < CCLib::ICPRegistrationTools::ICP_ERROR);
+	return (result < CCCoreLib::ICPRegistrationTools::ICP_ERROR);
 }

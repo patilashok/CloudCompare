@@ -18,24 +18,25 @@
 #include "ccConsole.h"
 
 //Local
-#include "mainwindow.h"
 #include "ccPersistentSettings.h"
+#include "mainwindow.h"
 
 //qCC_db
 #include <ccSingleton.h>
 
 //Qt
-#include <QListWidget>
-#include <QMessageBox>
 #include <QApplication>
+#include <QClipboard>
 #include <QColor>
-#include <QTime>
-#include <QThread>
-#include <QTextStream>
+#include <QKeyEvent>
+#include <QMessageBox>
 #include <QSettings>
+#include <QTextStream>
+#include <QThread>
+#include <QTime>
 
 //system
-#include <assert.h>
+#include <cassert>
 #ifdef QT_DEBUG
 #include <iostream>
 #endif
@@ -48,7 +49,39 @@
 static ccSingleton<ccConsole> s_console;
 
 bool ccConsole::s_showQtMessagesInConsole = false;
+bool ccConsole::s_redirectToStdOut = false;
 
+
+// ccCustomQListWidget
+ccCustomQListWidget::ccCustomQListWidget(QWidget *parent)
+	: QListWidget(parent)
+{
+}
+
+void ccCustomQListWidget::keyPressEvent(QKeyEvent *event)
+{
+	if (event->matches(QKeySequence::Copy))
+	{
+		int itemsCount = count();
+		QStringList strings;
+		for (int i = 0; i < itemsCount; ++i)
+		{
+			if (item(i)->isSelected())
+			{
+				strings << item(i)->text();
+			}
+		}
+		
+		QApplication::clipboard()->setText(strings.join("\n"));
+	}
+	else
+	{
+		QListWidget::keyPressEvent(event);
+	}
+}
+
+
+// ccConsole
 ccConsole* ccConsole::TheInstance(bool autoInit/*=true*/)
 {
 	if (!s_console.instance && autoInit)
@@ -67,15 +100,15 @@ void ccConsole::ReleaseInstance(bool flush/*=true*/)
 		//DGM: just in case some messages are still in the queue
 		s_console.instance->refresh();
 	}
-	ccLog::RegisterInstance(0);
+	ccLog::RegisterInstance(nullptr);
 	s_console.release();
 }
 
 ccConsole::ccConsole()
-	: m_textDisplay(0)
-	, m_parentWidget(0)
-	, m_parentWindow(0)
-	, m_logStream(0)
+	: m_textDisplay(nullptr)
+	, m_parentWidget(nullptr)
+	, m_parentWindow(nullptr)
+	, m_logStream(nullptr)
 {
 }
 
@@ -118,12 +151,10 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 		message.prepend("[Qt FATAL] ");
 		ccLog::Warning(message);
 		break;
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)) //DGM: QtInfoMsg is only defined since version 5.5
 	case QtInfoMsg:
 		message.prepend("[Qt INFO] ");
 		ccLog::Warning(message);
 		break;
-#endif
 	}
 	
 #ifdef QT_DEBUG
@@ -133,9 +164,7 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 	{
 		case QtDebugMsg:
 		case QtWarningMsg:
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 5, 0))
 		case QtInfoMsg:
-#endif
 			std::cout << message.toStdString() << std::endl;
 			break;
 			
@@ -161,7 +190,8 @@ void ccConsole::EnableQtMessages(bool state)
 
 void ccConsole::Init(	QListWidget* textDisplay/*=0*/,
 						QWidget* parentWidget/*=0*/,
-						MainWindow* parentWindow/*=0*/)
+						MainWindow* parentWindow/*=0*/,
+						bool redirectToStdOut/*=false*/)
 {
 	//should be called only once!
 	if (s_console.instance)
@@ -174,7 +204,7 @@ void ccConsole::Init(	QListWidget* textDisplay/*=0*/,
 	s_console.instance->m_textDisplay = textDisplay;
 	s_console.instance->m_parentWidget = parentWidget;
 	s_console.instance->m_parentWindow = parentWindow;
-
+	s_redirectToStdOut = redirectToStdOut;
 	//auto-start
 	if (textDisplay)
 	{
@@ -189,7 +219,6 @@ void ccConsole::Init(	QListWidget* textDisplay/*=0*/,
 
 		s_console.instance->setAutoRefresh(true);
 	}
-
 	ccLog::RegisterInstance(s_console.instance);
 }
 
@@ -249,16 +278,11 @@ void ccConsole::refresh()
 					if (m_parentWindow)
 						m_parentWindow->forceConsoleDisplay();
 				}
-				//Standard
-				else
-				{
 #ifdef QT_DEBUG
-					if (debugMessage)
-						item->setForeground(Qt::blue);
-					else
-#endif
-						item->setForeground(Qt::black);
+				else if (debugMessage) {
+					item->setForeground(Qt::blue);
 				}
+#endif
 
 				m_textDisplay->addItem(item);
 			}
@@ -287,7 +311,10 @@ void ccConsole::logMessage(const QString& message, int level)
 #endif
 
 	QString formatedMessage = QStringLiteral("[") + QTime::currentTime().toString() + QStringLiteral("] ") + message;
-
+	if (s_redirectToStdOut)
+	{
+		printf("%s\n", qPrintable(message));
+	}
 	if (m_textDisplay || m_logStream)
 	{
 		m_mutex.lock();
@@ -336,14 +363,14 @@ void ccConsole::logMessage(const QString& message, int level)
 	}
 }
 
-bool ccConsole::setLogFile(QString filename)
+bool ccConsole::setLogFile(const QString& filename)
 {
 	//close previous stream (if any)
 	if (m_logStream)
 	{
 		m_mutex.lock();
 		delete m_logStream;
-		m_logStream = 0;
+		m_logStream = nullptr;
 		m_mutex.unlock();
 
 		if (m_logFile.isOpen())
@@ -365,7 +392,6 @@ bool ccConsole::setLogFile(QString filename)
 		m_mutex.unlock();
 		setAutoRefresh(true);
 	}
-
 
 	return true;
 }

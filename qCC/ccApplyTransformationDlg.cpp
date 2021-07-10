@@ -19,7 +19,6 @@
 
 //Local
 #include "ccPersistentSettings.h"
-#include "ccAskTwoDoubleValuesDlg.h"
 #include "mainwindow.h"
 #include "ui_dipDirTransformationDlg.h"
 
@@ -34,7 +33,7 @@
 #include <QFileInfo>
 #include <QClipboard>
 
-//CCLib
+//CCCoreLib
 #include <CCConst.h>
 
 static QString s_lastMatrix("1.00000000 0.00000000 0.00000000 0.00000000\n0.00000000 1.00000000 0.00000000 0.00000000\n0.00000000 0.00000000 1.00000000 0.00000000\n0.00000000 0.00000000 0.00000000 1.00000000");
@@ -48,7 +47,7 @@ class DipDirTransformationDialog : public QDialog, public Ui::DipDirTransformati
 	
 public:
 
-	DipDirTransformationDialog(QWidget* parent = 0) : QDialog(parent) { setupUi(this); }
+	DipDirTransformationDialog(QWidget* parent = nullptr) : QDialog(parent) { setupUi(this); }
 };
 
 ccApplyTransformationDlg::ccApplyTransformationDlg(QWidget* parent/*=0*/)
@@ -65,28 +64,28 @@ ccApplyTransformationDlg::ccApplyTransformationDlg(QWidget* parent/*=0*/)
 	onMatrixTextChange(); //provoke the update of the other forms
 	tabWidget->setCurrentIndex(s_currentFormIndex);
 
-	connect(buttonBox,				SIGNAL(accepted()),							this,	SLOT(checkMatrixValidityAndAccept()));
-	connect(buttonBox,				SIGNAL(clicked(QAbstractButton*)),			this,	SLOT(buttonClicked(QAbstractButton*)));
+	connect(buttonBox,				 &QDialogButtonBox::accepted,	this, &ccApplyTransformationDlg::checkMatrixValidityAndAccept);
+	connect(buttonBox,				 &QDialogButtonBox::clicked,	this, &ccApplyTransformationDlg::buttonClicked);
 
-	connect(matrixTextEdit,			SIGNAL(textChanged()),			this,	SLOT(onMatrixTextChange()));
-	connect(fromFileToolButton,		SIGNAL(clicked()),				this,	SLOT(loadFromASCIIFile()));
-	connect(fromClipboardToolButton, SIGNAL(clicked()),				this,	SLOT(loadFromClipboard()));
-	connect(fromDipDipDirToolButton, SIGNAL(clicked()),				this,	SLOT(initFromDipAndDipDir()));
+	connect(matrixTextEdit,			 &QPlainTextEdit::textChanged,	this, &ccApplyTransformationDlg::onMatrixTextChange);
+	connect(fromFileToolButton,		 &QToolButton::clicked,			this, &ccApplyTransformationDlg::loadFromASCIIFile);
+	connect(fromClipboardToolButton, &QToolButton::clicked,			this, &ccApplyTransformationDlg::loadFromClipboard);
+	connect(fromDipDipDirToolButton, &QToolButton::clicked,			this, &ccApplyTransformationDlg::initFromDipAndDipDir);
 
-	connect(rxAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(ryAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(rzAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(rAngleDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(txAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(tyAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
-	connect(tzAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onRotAngleValueChanged(double)));
+	connect(rxAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(ryAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(rzAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(rAngleDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(txAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(tyAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
+	connect(tzAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onRotAngleValueChanged);
 
-	connect(ePhiDoubleSpinBox,		SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
-	connect(eThetaDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
-	connect(ePsiDoubleSpinBox,		SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
-	connect(etxAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
-	connect(etyAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
-	connect(etzAxisDoubleSpinBox,	SIGNAL(valueChanged(double)),	this,	SLOT(onEulerValueChanged(double)));
+	connect(ePhiDoubleSpinBox,		static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
+	connect(eThetaDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
+	connect(ePsiDoubleSpinBox,		static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
+	connect(etxAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
+	connect(etyAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
+	connect(etzAxisDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),	this,	&ccApplyTransformationDlg::onEulerValueChanged);
 }
 
 void ccApplyTransformationDlg::onMatrixTextChange()
@@ -111,12 +110,13 @@ void ccApplyTransformationDlg::onMatrixTextChange()
 void ccApplyTransformationDlg::onRotAngleValueChanged(double)
 {
 	PointCoordinateType alpha = 0;
-	CCVector3 axis,t;
+	CCVector3 axis;
+	CCVector3 t;
 
 	axis.x	= static_cast<PointCoordinateType>(rxAxisDoubleSpinBox->value());
 	axis.y	= static_cast<PointCoordinateType>(ryAxisDoubleSpinBox->value());
 	axis.z	= static_cast<PointCoordinateType>(rzAxisDoubleSpinBox->value());
-	alpha	= static_cast<PointCoordinateType>(rAngleDoubleSpinBox->value() * CC_DEG_TO_RAD);
+	alpha	= static_cast<PointCoordinateType>( CCCoreLib::DegreesToRadians( rAngleDoubleSpinBox->value() ) );
 	t.x		= static_cast<PointCoordinateType>(txAxisDoubleSpinBox->value());
 	t.y		= static_cast<PointCoordinateType>(tyAxisDoubleSpinBox->value());
 	t.z		= static_cast<PointCoordinateType>(tzAxisDoubleSpinBox->value());
@@ -129,12 +129,14 @@ void ccApplyTransformationDlg::onRotAngleValueChanged(double)
 
 void ccApplyTransformationDlg::onEulerValueChanged(double)
 {
-	PointCoordinateType phi,theta,psi = 0;
+	PointCoordinateType phi = 0;
+	PointCoordinateType theta = 0;
+	PointCoordinateType psi = 0;
 	CCVector3 t;
 
-	phi		= static_cast<PointCoordinateType>(ePhiDoubleSpinBox->value() * CC_DEG_TO_RAD);
-	theta	= static_cast<PointCoordinateType>(eThetaDoubleSpinBox->value() * CC_DEG_TO_RAD);
-	psi		= static_cast<PointCoordinateType>(ePsiDoubleSpinBox->value() * CC_DEG_TO_RAD);
+	phi		= static_cast<PointCoordinateType>( CCCoreLib::DegreesToRadians( ePhiDoubleSpinBox->value() ) );
+	theta	= static_cast<PointCoordinateType>( CCCoreLib::DegreesToRadians( eThetaDoubleSpinBox->value() ) );
+	psi		= static_cast<PointCoordinateType>( CCCoreLib::DegreesToRadians( ePsiDoubleSpinBox->value() ) );
 	t.x		= static_cast<PointCoordinateType>(etxAxisDoubleSpinBox->value());
 	t.y		= static_cast<PointCoordinateType>(etyAxisDoubleSpinBox->value());
 	t.z		= static_cast<PointCoordinateType>(etzAxisDoubleSpinBox->value());
@@ -166,13 +168,14 @@ void ccApplyTransformationDlg::updateAll(const ccGLMatrix& mat, bool textForm/*=
 		tzAxisDoubleSpinBox->blockSignals(true);
 
 		PointCoordinateType alpha = 0;
-		CCVector3 axis,t;
+		CCVector3 axis;
+		CCVector3 t;
 		mat.getParameters(alpha,axis,t);
 
 		rxAxisDoubleSpinBox->setValue(axis.x);
 		ryAxisDoubleSpinBox->setValue(axis.y);
 		rzAxisDoubleSpinBox->setValue(axis.z);
-		rAngleDoubleSpinBox->setValue(alpha * CC_RAD_TO_DEG);
+		rAngleDoubleSpinBox->setValue( CCCoreLib::RadiansToDegrees( alpha ) );
 		txAxisDoubleSpinBox->setValue(t.x);
 		tyAxisDoubleSpinBox->setValue(t.y);
 		tzAxisDoubleSpinBox->setValue(t.z);
@@ -195,13 +198,15 @@ void ccApplyTransformationDlg::updateAll(const ccGLMatrix& mat, bool textForm/*=
 		etyAxisDoubleSpinBox->blockSignals(true);
 		etzAxisDoubleSpinBox->blockSignals(true);
 
-		PointCoordinateType phi,theta,psi = 0;
+		PointCoordinateType phi = 0;
+		PointCoordinateType theta = 0;
+		PointCoordinateType psi = 0;
 		CCVector3 t;
 		mat.getParameters(phi,theta,psi,t);
 
-		ePhiDoubleSpinBox   ->setValue(phi * CC_RAD_TO_DEG);
-		eThetaDoubleSpinBox ->setValue(theta * CC_RAD_TO_DEG);
-		ePsiDoubleSpinBox   ->setValue(psi * CC_RAD_TO_DEG);
+		ePhiDoubleSpinBox   ->setValue( CCCoreLib::RadiansToDegrees( phi ) );
+		eThetaDoubleSpinBox ->setValue( CCCoreLib::RadiansToDegrees( theta ) );
+		ePsiDoubleSpinBox   ->setValue( CCCoreLib::RadiansToDegrees( psi ) );
 		etxAxisDoubleSpinBox->setValue(t.x);
 		etyAxisDoubleSpinBox->setValue(t.y);
 		etzAxisDoubleSpinBox->setValue(t.z);

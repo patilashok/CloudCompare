@@ -23,7 +23,7 @@
 #include "ccCommon.h"
 #include "ccPickingListener.h"
 
-//CCLib
+//CCCoreLib
 #include <CCGeom.h>
 
 //system
@@ -43,27 +43,22 @@ class ccPointPickingGenericInterface : public ccOverlayDialog, public ccPickingL
 public:
 
 	//! Default constructor
-	explicit ccPointPickingGenericInterface(ccPickingHub* pickingHub, QWidget* parent = 0);
+	explicit ccPointPickingGenericInterface(ccPickingHub* pickingHub, QWidget* parent = nullptr);
 	//! Destructor
-	virtual ~ccPointPickingGenericInterface() {}
+	~ccPointPickingGenericInterface() override = default;
 
 	//inherited from ccOverlayDialog
-	virtual bool linkWith(ccGLWindow* win);
-	virtual bool start();
-	virtual void stop(bool state);
+	bool linkWith(ccGLWindow* win) override;
+	bool start() override;
+	void stop(bool state) override;
 
 	//! Inherited from ccPickingListener
-	virtual void onItemPicked(const PickedItem& pi);
+	void onItemPicked(const PickedItem& pi) override;
 
 protected:
 
 	//! Generic method to process picked points
-	/** \param cloud picked point cloud
-		\param pointIndex point index in cloud
-		\param x picked pixel X position
-		\param y picked pixel Y position
-	**/
-	virtual void processPickedPoint(ccPointCloud* cloud, unsigned pointIndex, int x, int y) = 0;
+	virtual void processPickedPoint(const PickedItem& picked) = 0;
 
 	//! Picking hub
 	ccPickingHub* m_pickingHub;

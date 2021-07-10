@@ -23,22 +23,22 @@
 #include "ccPickingListener.h"
 
 //qCC_db
-#include <ccHObject.h>
 #include <ccGenericGLDisplay.h>
 
 //system
-#include <set>
-
-//GUI
-#include <ui_tracePolylineDlg.h>
+#include <vector>
 
 class ccPolyline;
 class ccPointCloud;
 class ccGLWindow;
 class ccPickingHub;
 
+namespace Ui {
+	class TracePolyLineDlg;
+}
+
 //! Graphical Polyline Tracing tool
-class ccTracePolylineTool : public ccOverlayDialog, public ccPickingListener, public Ui::TracePolyLineDlg
+class ccTracePolylineTool : public ccOverlayDialog, public ccPickingListener
 {
 	Q_OBJECT
 
@@ -53,7 +53,7 @@ public:
 	virtual bool start() override;
 	virtual void stop(bool accepted) override;
 
-protected slots:
+protected:
 
 	void apply();
 	void cancel();
@@ -61,8 +61,6 @@ protected slots:
 	inline void continueEdition()  { restart(false); }
 	inline void resetLine() { restart(true); }
 
-	//void handlePickedItem(ccHObject*, unsigned, int, int, const CCVector3&);
-	//void addPointToPolyline(int x, int y);
 	void closePolyLine(int x = 0, int y = 0); //arguments for compatibility with ccGlWindow::rightButtonClicked signal
 	void updatePolyLineTip(int x, int y, Qt::MouseButtons buttons);
 
@@ -110,6 +108,7 @@ protected:
 	//! Picking hub
 	ccPickingHub* m_pickingHub;
 
+	Ui::TracePolyLineDlg* m_ui;
 };
 
 #endif //CC_TRACE_POLY_LINE_TOOL_HEADER

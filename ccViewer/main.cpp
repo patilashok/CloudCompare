@@ -44,15 +44,15 @@
 
 int main(int argc, char *argv[])
 {
-	ccViewerApplication::init();
+	ccViewerApplication::initOpenGL();
 	
-	ccViewerApplication a(argc, argv);
+	ccViewerApplication a(argc, argv, false);
 
 #ifdef USE_VLD
 	VLDEnable();
 #endif
 	
-	QDir  workingDir = QCoreApplication::applicationDirPath();
+	QDir workingDir = QCoreApplication::applicationDirPath();
 	
 #ifdef Q_OS_MAC	
 	// This makes sure that our "working directory" is not within the application bundle
@@ -68,12 +68,12 @@ int main(int argc, char *argv[])
 	
 	if (!QGLFormat::hasOpenGL())
 	{
-		QMessageBox::critical(0, "Error", "This application needs OpenGL to run!");
+		QMessageBox::critical(nullptr, "Error", "This application needs OpenGL to run!");
 		return EXIT_FAILURE;
 	}
 	if ((QGLFormat::openGLVersionFlags() & QGLFormat::OpenGL_Version_2_1) == 0)
 	{
-		QMessageBox::critical(0, "Error", "This application needs OpenGL 2.1 at least to run!");
+		QMessageBox::critical(nullptr, "Error", "This application needs OpenGL 2.1 at least to run!");
 		return EXIT_FAILURE;
 	}
 
@@ -82,8 +82,7 @@ int main(int argc, char *argv[])
 	ccNormalVectors::GetUniqueInstance(); //force pre-computed normals array initialization
 	ccColorScalesManager::GetUniqueInstance(); //force pre-computed color tables initialization
 
-	ccViewer w/*(0,Qt::Window|Qt::CustomizeWindowHint)*/;
-
+	ccViewer w;
 	a.setViewer( &w );
 
 	//register minimal logger to display errors
@@ -100,20 +99,20 @@ int main(int argc, char *argv[])
 		int i = 1;
 		while ( i < argc)
 		{
-			QString argument = QString(argv[i++]);
+			QString argument = QString::fromLocal8Bit(argv[i++]);
 			QString upperArgument = argument.toUpper();
 
 			//Argument '-WIN X Y W H' (to set window size and position)
 			if (upperArgument == "-WIN")
 			{
 				bool ok = true;
-				if (i+3 < argc)
+				if (i + 3 < argc)
 				{
 					bool converionOk;
-					int x      = QString(argv[i  ]).toInt(&converionOk); ok &= converionOk;
-					int y      = QString(argv[i+1]).toInt(&converionOk); ok &= converionOk;
-					int width  = QString(argv[i+2]).toInt(&converionOk); ok &= converionOk;
-					int height = QString(argv[i+3]).toInt(&converionOk); ok &= converionOk;
+					int x      = QString(argv[i    ]).toInt(&converionOk); ok &= converionOk;
+					int y      = QString(argv[i + 1]).toInt(&converionOk); ok &= converionOk;
+					int width  = QString(argv[i + 2]).toInt(&converionOk); ok &= converionOk;
+					int height = QString(argv[i + 3]).toInt(&converionOk); ok &= converionOk;
 					i += 4;
 
 					if (ok)

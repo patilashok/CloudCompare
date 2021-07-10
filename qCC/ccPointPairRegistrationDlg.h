@@ -19,11 +19,11 @@
 #define POINT_PAIR_REGISTRATION_DIALOG_HEADER
 
 //Local
+#include "ccMainAppInterface.h"
 #include "ccOverlayDialog.h"
 #include "ccPickingListener.h"
-#include "ccMainAppInterface.h"
 
-//CCLib
+//CCCoreLib
 #include <PointProjectionTools.h>
 
 //qCC_db
@@ -47,17 +47,17 @@ class ccPointPairRegistrationDlg : public ccOverlayDialog, public ccPickingListe
 public:
 
 	//! Default constructor
-	explicit ccPointPairRegistrationDlg(ccPickingHub* pickingHub, ccMainAppInterface* app, QWidget* parent = 0);
+	explicit ccPointPairRegistrationDlg(ccPickingHub* pickingHub, ccMainAppInterface* app, QWidget* parent = nullptr);
 
 	//inherited from ccOverlayDialog
-	virtual bool linkWith(ccGLWindow* win);
-	virtual bool start();
-	virtual void stop(bool state);
+	bool linkWith(ccGLWindow* win) override;
+	bool start() override;
+	void stop(bool state) override;
 
 	//! Inits dialog
 	bool init(	ccGLWindow* win,
-				ccHObject* aligned,
-				ccHObject* reference = 0);
+				const ccHObject::Container& alignedEntities,
+				const ccHObject::Container* referenceEntities = nullptr);
 
 	//! Clears dialog
 	void clear();
@@ -66,9 +66,9 @@ public:
 	void pause(bool state);
 
 	//! Adds a point to the 'align' set
-	bool addAlignedPoint(CCVector3d& P, ccHObject* entity = 0, bool shifted = true);
+	bool addAlignedPoint(CCVector3d& P, ccHObject* entity = nullptr, bool shifted = true);
 	//! Adds a point to the 'reference' set
-	bool addReferencePoint(CCVector3d& P, ccHObject* entity = 0, bool shifted = true);
+	bool addReferencePoint(CCVector3d& P, ccHObject* entity = nullptr, bool shifted = true);
 
 	//! Removes a point from the 'align' set
 	void removeAlignedPoint(int index, bool autoRemoveDualPoint = true);
@@ -76,14 +76,14 @@ public:
 	void removeRefPoint(int index, bool autoRemoveDualPoint = true);
 
 	//! Inherited from ccPickingListener
-	virtual void onItemPicked(const PickedItem& pi);
+	void onItemPicked(const PickedItem& pi) override;
 
-protected slots:
+protected:
 
-	//! Slot called to change aligned cloud visibility
-	void showAlignedCloud(bool);
-	//! Slot called to change reference cloud visibility
-	void showReferenceCloud(bool);
+	//! Slot called to change aligned entities visibility
+	void showAlignedEntities(bool);
+	//! Slot called to change reference entities visibility
+	void showReferenceEntities(bool);
 
 	//! Slot called to add a manual point to the 'align' set
 	void addManualAlignedPoint();
@@ -111,14 +111,17 @@ protected:
 	//! Enables (or not) buttons depending on the number of points in both lists
 	void onPointCountChanged();
 
-	//! Calls Horn registration (CCLib::HornRegistrationTools)
-	bool callHornRegistration(CCLib::PointProjectionTools::Transformation& trans, double& rms, bool autoUpdateTab);
+	//! Calls Horn registration (CCCoreLib::HornRegistrationTools)
+	bool callHornRegistration(CCCoreLib::PointProjectionTools::Transformation& trans, double& rms, bool autoUpdateTab);
 
 	//! Clears the RMS rows
 	void clearRMSColumns();
 
 	//! Adds a point to one of the table (ref./aligned)
-	void addPointToTable(QTableWidget* tableWidget, int rowIndex, const CCVector3d& P, QString pointLabel);
+	void addPointToTable(	QTableWidget* tableWidget,
+							int rowIndex,
+							const CCVector3d& P,
+							QString pointLabel );
 
 	//! Converts a picked point to a sphere center (if necessary)
 	/** \param P input point (may be converted to a sphere center)
@@ -131,7 +134,7 @@ protected:
 	//! Resets the displayed title (3D view)
 	void resetTitle();
 
-	//! Original cloud context
+	//! Entity original context
 	struct EntityContext
 	{
 		//! Default constructor
@@ -147,14 +150,37 @@ protected:
 		bool wasSelected;
 	};
 
+	//! Set of contexts
+	struct EntityContexts : public QMap< ccHObject*, EntityContext >
+	{
+		void fill(const ccHObject::Container& entities);
+
+		void restoreAll()
+		{
+			for (EntityContext& ctx : *this)
+				ctx.restore();
+		}
+
+		bool isShifted;
+		CCVector3d shift;
+		double scale = 1.0;
+	};
+
+	//! Removes a label (and restore its associated label if any)
+	void removeLabel(	ccPointCloud& points,
+						unsigned childIndex,
+						const EntityContexts& entities);
+
+protected: //members
+
 	//! Aligned entity
-	EntityContext m_aligned;
+	EntityContexts m_alignedEntities;
 
 	//! Aligned points set
 	ccPointCloud m_alignedPoints;
 	
 	//! Reference entity (if any)
-	EntityContext m_reference;
+	EntityContexts m_referenceEntities;
 
 	//! Reference points set
 	ccPointCloud m_refPoints;

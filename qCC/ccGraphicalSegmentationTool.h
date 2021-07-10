@@ -57,7 +57,7 @@ public:
 	unsigned getNumberOfValidEntities() const;
 
 	//! Get a pointer to the polyline that has been segmented
-	ccPolyline *getPolyLine() {return m_segmentationPoly;}
+	const ccPolyline* getPolyLine() const { return m_segmentationPoly; }
 
 	//! Returns the active 'to be segmented' set
 	QSet<ccHObject*>& entities() { return m_toSegment; }
@@ -65,9 +65,9 @@ public:
 	const QSet<ccHObject*>& entities() const { return m_toSegment; }
 
 	//inherited from ccOverlayDialog
-	virtual bool linkWith(ccGLWindow* win);
-	virtual bool start();
-	virtual void stop(bool accepted);
+	virtual bool linkWith(ccGLWindow* win) override;
+	virtual bool start() override;
+	virtual void stop(bool accepted) override;
 
 	//! Returns whether hidden parts should be delete after segmentation
 	bool deleteHiddenParts() const { return m_deleteHiddenParts; }
@@ -78,7 +78,7 @@ public:
 	**/
 	void removeAllEntities(bool unallocateVisibilityArrays);
 
-protected slots:
+protected:
 
 	void segmentIn();
 	void segmentOut();

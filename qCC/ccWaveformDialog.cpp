@@ -18,11 +18,12 @@
 #include "ccWaveformDialog.h"
 
 //Local
-#include "ccQCustomPlot.h"
-#include "ccPersistentSettings.h"
-#include "ccGuiParameters.h"
-#include "ccPickingHub.h"
 #include "ccFileUtils.h"
+#include "ccPersistentSettings.h"
+#include "ccQCustomPlot.h"
+
+//common
+#include <ccPickingHub.h>
 
 //qCC_db
 #include <ccPointCloud.h>
@@ -33,7 +34,7 @@
 #include <QSettings>
 
 //System
-#include <assert.h>
+#include <cassert>
 #include <cmath>
 
 //Gui
@@ -86,7 +87,7 @@ void ccWaveWidget::clear()
 
 void ccWaveWidget::clearInternal()
 {
-	m_curveValues.clear();
+	m_curveValues.resize(0);
 	m_dt = 0;
 	m_minA = m_maxA = 0;
 }
@@ -182,7 +183,7 @@ void ccWaveWidget::init(ccPointCloud* cloud, unsigned pointIndex, bool logScale,
 
 	m_dt = w.descriptor().samplingRate_ps;
 	m_echoPos = w.echoTime_ps();
-};
+}
 
 void ccWaveWidget::refresh()
 {
@@ -202,9 +203,9 @@ void ccWaveWidget::refresh()
 		{
 			//remove previous title
 			plotLayout()->remove(m_titlePlot);
-			m_titlePlot = 0;
+			m_titlePlot = nullptr;
 		}
-		m_titlePlot = new QCPPlotTitle(this, m_titleStr);
+		m_titlePlot = new QCPTextElement(this, m_titleStr);
 		
 		//title font
 		m_renderingFont.setPointSize(ccGui::Parameters().defaultFontSize);
@@ -213,9 +214,9 @@ void ccWaveWidget::refresh()
 	}
 
 	//clear previous display
-	m_vertBar = 0;
-	m_curve = 0;
-	m_peakBar = 0;
+	m_vertBar = nullptr;
+	m_curve = nullptr;
+	m_peakBar = nullptr;
 	this->clearGraphs();
 	this->clearPlottables();
 
@@ -223,7 +224,8 @@ void ccWaveWidget::refresh()
 	int curveSize = static_cast<int>(m_curveValues.size());
 	if (curveSize != 0)
 	{
-		QVector<double> x(curveSize), y(curveSize);
+		QVector<double> x(curveSize);
+		QVector<double> y(curveSize);
 		
 		for (int i = 0; i < curveSize; ++i)
 		{
@@ -247,7 +249,6 @@ void ccWaveWidget::refresh()
 	if (m_drawVerticalIndicator) //vertical hint
 	{
 		m_vertBar = new QCPBarsWithText(xAxis, yAxis);
-		addPlottable(m_vertBar);
 		
 		// now we can modify properties of vertBar
 		m_vertBar->setName("VertLine");
@@ -276,7 +277,6 @@ void ccWaveWidget::refresh()
 	if (m_echoPos >= 0)
 	{
 		m_peakBar = new QCPBarsWithText(xAxis, yAxis);
-		addPlottable(m_peakBar);
 
 		// now we can modify properties of vertBar
 		m_peakBar->setName("PeakLine");
@@ -355,11 +355,6 @@ void ccWaveWidget::mouseMoveEvent(QMouseEvent *event)
 	}
 }
 
-//void ccWaveWidget::wheelEvent(QWheelEvent* e)
-//{
-//	e->ignore();
-//}
-
 ccWaveDialog::ccWaveDialog(	ccPointCloud* cloud,
 							ccPickingHub* pickingHub,
 							QWidget* parent/*=0*/)
@@ -395,12 +390,12 @@ ccWaveDialog::ccWaveDialog(	ccPointCloud* cloud,
 		}
 	}
 
-	connect(m_gui->pointIndexSpinBox, SIGNAL(valueChanged(int)), this, SLOT(onPointIndexChanged(int)));
-	connect(m_gui->logScaleCheckBox, SIGNAL(toggled(bool)), this, SLOT(updateCurrentWaveform()));
-	connect(m_gui->fixedAmplitudeCheckBox, SIGNAL(toggled(bool)), this, SLOT(updateCurrentWaveform()));
-	connect(m_gui->pointPickingToolButton, SIGNAL(toggled(bool)), SLOT(onPointPickingButtonToggled(bool)));
+	connect(m_gui->pointIndexSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &ccWaveDialog::onPointIndexChanged);
+	connect(m_gui->logScaleCheckBox,		&QCheckBox::toggled,	this,	&ccWaveDialog::updateCurrentWaveform);
+	connect(m_gui->fixedAmplitudeCheckBox,	&QCheckBox::toggled,	this,	&ccWaveDialog::updateCurrentWaveform);
+	connect(m_gui->pointPickingToolButton,	&QToolButton::toggled,	this,	&ccWaveDialog::onPointPickingButtonToggled);
+	connect(m_gui->saveWaveToolButton,		&QToolButton::clicked,	this,	&ccWaveDialog::onExportWaveAsCSV);
 	connect(this, &QDialog::finished, [&]() { m_gui->pointPickingToolButton->setChecked(false); }); //auto disable picking mode when the dialog is closed
-	connect(m_gui->saveWaveToolButton, SIGNAL(clicked()), SLOT(onExportWaveAsCSV()));
 
 
 	//force update
@@ -409,10 +404,8 @@ ccWaveDialog::ccWaveDialog(	ccPointCloud* cloud,
 
 ccWaveDialog::~ccWaveDialog()
 {
-	if (m_gui)
-	{
-		delete m_gui;
-	}
+
+	delete m_gui;
 }
 
 void ccWaveDialog::onPointIndexChanged(int index)
@@ -436,6 +429,7 @@ void ccWaveDialog::onItemPicked(const PickedItem& pi)
 {
 	if (pi.entity == m_cloud)
 	{
+		assert(!pi.entityCenter);
 		m_gui->pointIndexSpinBox->setValue(static_cast<int>(pi.itemIndex));
 	}
 }

@@ -26,11 +26,8 @@
 #include "ccMainAppInterface.h"
 #include "ccPickingListener.h"
 
-//CCLib
+//CCCoreLib
 #include <AutoSegmentationTools.h>
-
-//internal db
-#include "db_tree/ccDBRoot.h"
 
 class QAction;
 class QMdiArea;
@@ -42,6 +39,7 @@ class cc3DMouseManager;
 class ccCameraParamEditDlg;
 class ccClippingBoxTool;
 class ccComparisonDlg;
+class ccDBRoot;
 class ccDrawableObject;
 class ccGamepadManager;
 class ccGLWindow;
@@ -59,6 +57,8 @@ class ccSectionExtractionTool;
 class ccStdPluginInterface;
 class ccTracePolylineTool;
 
+struct dbTreeSelectionInfo;
+
 namespace Ui {
 	class MainWindow;
 } 
@@ -69,15 +69,13 @@ class MainWindow : public QMainWindow, public ccMainAppInterface, public ccPicki
 	Q_OBJECT
 
 protected:
-
 	//! Default constructor
 	MainWindow();
 
 	//! Default desctructor
-	virtual ~MainWindow();
-
+	~MainWindow() override;
+	
 public:
-
 	//! Returns the unique instance of this object
 	static MainWindow* TheInstance();
 
@@ -104,7 +102,7 @@ public:
 	static void DestroyInstance();
 
 	//! Returns active GL sub-window (if any)
-	virtual ccGLWindow* getActiveGLWindow() override;
+	ccGLWindow* getActiveGLWindow() override;
 	
 	//! Returns MDI area subwindow corresponding to a given 3D view
 	QMdiSubWindow* getMDISubWindow(ccGLWindow* win);
@@ -120,41 +118,41 @@ public:
 		\param fileFilter selected file filter (i.e. type)
 		\param destWin destination window (0 = active one)
 	**/
-	virtual void addToDB(	const QStringList& filenames,
-							QString fileFilter = QString(),
-							ccGLWindow* destWin = nullptr);
-
+	virtual void addToDB( const QStringList& filenames,
+						  QString fileFilter = QString(),
+						  ccGLWindow* destWin = nullptr );
+	
 	//inherited from ccMainAppInterface
-	virtual void addToDB(	ccHObject* obj,
-							bool updateZoom = false,
-							bool autoExpandDBTree = true,
-							bool checkDimensions = false,
-							bool autoRedraw = true) override;
-
-	virtual void registerOverlayDialog(ccOverlayDialog* dlg, Qt::Corner pos) override;
-	virtual void unregisterOverlayDialog(ccOverlayDialog* dlg) override;
-	virtual void updateOverlayDialogsPlacement() override;
-	virtual void removeFromDB(ccHObject* obj, bool autoDelete = true) override;
-	virtual void setSelectedInDB(ccHObject* obj, bool selected) override;
-	virtual void dispToConsole(QString message, ConsoleMessageLevel level = STD_CONSOLE_MESSAGE) override;
-	virtual void forceConsoleDisplay() override;
-	virtual ccHObject* dbRootObject() override;
-	inline virtual QMainWindow* getMainWindow() override { return this; }
-	inline virtual const ccHObject::Container& getSelectedEntities() const override { return m_selectedEntities; }
-	virtual void createGLWindow(ccGLWindow*& window, QWidget*& widget) const override;
-	virtual void destroyGLWindow(ccGLWindow*) const override;
-	virtual ccUniqueIDGenerator::Shared getUniqueIDGenerator() override;
-	virtual ccColorScalesManager* getColorScalesManager() override;
-	virtual void spawnHistogramDialog(	const std::vector<unsigned>& histoValues,
-										double minVal, double maxVal,
-										QString title, QString xAxisLabel) override;
-	virtual ccPickingHub* pickingHub() override { return m_pickingHub; }
-	virtual ccHObjectContext removeObjectTemporarilyFromDBTree(ccHObject* obj) override;
-	virtual void putObjectBackIntoDBTree(ccHObject* obj, const ccHObjectContext& context) override;
-
+	void addToDB( ccHObject* obj,
+				  bool updateZoom = false,
+				  bool autoExpandDBTree = true,
+				  bool checkDimensions = false,
+				  bool autoRedraw = true ) override;
+	
+	void registerOverlayDialog(ccOverlayDialog* dlg, Qt::Corner pos) override;
+	void unregisterOverlayDialog(ccOverlayDialog* dlg) override;
+	void updateOverlayDialogsPlacement() override;
+	void removeFromDB(ccHObject* obj, bool autoDelete = true) override;
+	void setSelectedInDB(ccHObject* obj, bool selected) override;
+	void dispToConsole(QString message, ConsoleMessageLevel level = STD_CONSOLE_MESSAGE) override;
+	void forceConsoleDisplay() override;
+	ccHObject* dbRootObject() override;
+	inline  QMainWindow* getMainWindow() override { return this; }
+	inline  const ccHObject::Container& getSelectedEntities() const override { return m_selectedEntities; }
+	void createGLWindow(ccGLWindow*& window, QWidget*& widget) const override;
+	void destroyGLWindow(ccGLWindow*) const override;
+	ccUniqueIDGenerator::Shared getUniqueIDGenerator() override;
+	ccColorScalesManager* getColorScalesManager() override;
+	void spawnHistogramDialog(	const std::vector<unsigned>& histoValues,
+								double minVal, double maxVal,
+								QString title, QString xAxisLabel) override;
+	ccPickingHub* pickingHub() override { return m_pickingHub; }
+	ccHObjectContext removeObjectTemporarilyFromDBTree(ccHObject* obj) override;
+	void putObjectBackIntoDBTree(ccHObject* obj, const ccHObjectContext& context) override;
+	
 	//! Inherited from ccPickingListener
-	virtual void onItemPicked(const PickedItem& pi) override;
-
+	void onItemPicked(const PickedItem& pi) override;
+	
 	//! Returns real 'dbRoot' object
 	virtual ccDBRoot* db();
 
@@ -170,10 +168,9 @@ public:
 	//! Updates the 'Properties' view
 	void updatePropertiesView();
 	
-private slots:
-
+private:
 	//! Creates a new 3D GL sub-window
-	ccGLWindow* new3DView();
+	ccGLWindow* new3DView( bool allowEntitySelection );
 
 	//! Zooms in (current 3D view)
 	void zoomIn();
@@ -203,25 +200,25 @@ private slots:
 	void onExclusiveFullScreenToggled(bool);
 
 	//inherited from ccMainAppInterface
-	virtual void freezeUI(bool state) override;
-	virtual void redrawAll(bool only2D = false) override;
-	virtual void refreshAll(bool only2D = false) override;
-	virtual void enableAll() override;
-	virtual void disableAll() override;
-	virtual void disableAllBut(ccGLWindow* win) override;
-	virtual void updateUI() override;
+	void freezeUI(bool state) override;
+	void redrawAll(bool only2D = false) override;
+	void refreshAll(bool only2D = false) override;
+	void enableAll() override;
+	void disableAll() override;
+	void disableAllBut(ccGLWindow* win) override;
+	void updateUI() override;
 	
 	virtual void toggleActiveWindowStereoVision(bool);
-	virtual void toggleActiveWindowCenteredPerspective() override;
-	virtual void toggleActiveWindowCustomLight() override;
-	virtual void toggleActiveWindowSunLight() override;
-	virtual void toggleActiveWindowViewerBasedPerspective() override;
-	virtual void zoomOnSelectedEntities() override;
-	virtual void setGlobalZoom() override;
+	void toggleActiveWindowCenteredPerspective() override;
+	void toggleActiveWindowCustomLight() override;
+	void toggleActiveWindowSunLight() override;
+	void toggleActiveWindowViewerBasedPerspective() override;
+	void zoomOnSelectedEntities() override;
+	void setGlobalZoom() override;
 	
-	virtual void increasePointSize() override;
-	virtual void decreasePointSize() override;
-
+	void increasePointSize() override;
+	void decreasePointSize() override;
+	
 	void toggleLockRotationAxis();
 	void doActionEnableBubbleViewMode();
 	void setPivotAlwaysOn();
@@ -247,11 +244,9 @@ private slots:
 	void addToDBAuto(const QStringList& filenames);
 
 	void echoMouseWheelRotate(float);
-	void echoCameraDisplaced(float ddx, float ddy);
 	void echoBaseViewMatRotation(const ccGLMatrixd& rotMat);
 	void echoCameraPosChanged(const CCVector3d&);
 	void echoPivotPointChanged(const CCVector3d&);
-	void echoPixelSizeChanged(float);
 
 	void doActionRenderToFile();
 
@@ -264,6 +259,7 @@ private slots:
 	void doActionInterpolateColors();
 	void doActionChangeColorLevels();
 	void doActionEnhanceRGBWithIntensities();
+	void doActionColorFromScalars();
 
 	void doActionSFGaussianFilter();
 	void doActionSFBilateralFilter();
@@ -275,10 +271,8 @@ private slots:
 	void doActionSetSFAsCoord();
 	void doActionInterpolateScalarFields();
 
-	void doComputeDensity();
-	void doComputeCurvature();
+	void doComputeGeometricFeature();
 	void doActionSFGradient();
-	void doComputeRoughness();
 	void doRemoveDuplicatePoints();
 	void doSphericalNeighbourhoodExtractionTest(); //DGM TODO: remove after test
 	void doCylindricalNeighbourhoodExtractionTest(); //DGM TODO: remove after test
@@ -302,6 +296,7 @@ private slots:
 	void doActionStatisticalTest();
 	void doActionSamplePointsOnMesh();
 	void doActionSamplePointsOnPolyline();
+	void doActionSmoohPolyline();
 	void doActionConvertTextureToColor();
 	void doActionLabelConnectedComponents();
 	void doActionComputeStatParams();
@@ -318,6 +313,8 @@ private slots:
 	
 	void doActionCreatePlane();
 	void doActionEditPlane();
+	void doActionFlipPlane();
+	void doActionComparePlanes();
 
 	void doActionDeleteScanGrids();
 	void doActionSmoothMeshSF();
@@ -338,6 +335,7 @@ private slots:
 	void doActionFlagMeshVertices();
 	void doActionSmoothMeshLaplacian();
 	void doActionSubdivideMesh();
+	void doActionFlipMeshTriangles();
 	void doActionComputeCPS();
 	void doActionShowWaveDialog();
 	void doActionCompressFWFData();
@@ -366,6 +364,7 @@ private slots:
 	void doConvertPolylinesToMesh();
 	void doMeshTwoPolylines();
 	void doActionExportCoordToSF();
+	void doActionExportNormalToSF();
 	void doComputeBestFitBB();
 	void doActionCrop();
 
@@ -373,6 +372,7 @@ private slots:
 	void doActionAdjustZoom();
 	void doActionSaveViewportAsCamera();
 	void doActionResetGUIElementsPos();
+	void doActionResetAllVBOs();
 
 	//Shaders & plugins
 	void doActionLoadShader();
@@ -403,6 +403,7 @@ private slots:
 	//Entities comparison
 	void doActionCloudCloudDist();
 	void doActionCloudMeshDist();
+	void doActionCloudPrimitiveDist();
 	void deactivateComparisonMode(int);
 
 	//Point picking mechanism
@@ -436,6 +437,15 @@ private slots:
 	//! Creates a cloud with the (bounding-box) centers of all selected entities
 	void doActionCreateCloudFromEntCenters();
 
+	//! Creates a cloud with a single point
+	void createSinglePointCloud();
+	//! Creates a cloud from the clipboard (ASCII) data
+	void createPointCloudFromClipboard();
+
+	inline void doActionMoveBBCenterToOrigin()    { doActionFastRegistration(MoveBBCenterToOrigin); }
+	inline void doActionMoveBBMinCornerToOrigin() { doActionFastRegistration(MoveBBMinCornerToOrigin); }
+	inline void doActionMoveBBMaxCornerToOrigin() { doActionFastRegistration(MoveBBMaxCornerToOrigin); }
+
 private:
 	//! Shortcut: asks the user to select one cloud
 	/** \param defaultCloudEntity a cloud to select by default (optional)
@@ -444,17 +454,26 @@ private:
 	**/
 	ccPointCloud* askUserToSelectACloud(ccHObject* defaultCloudEntity = nullptr, QString inviteMessage = QString());
 
-	void	toggleSelectedEntitiesProperty( ccEntityAction::TOGGLE_PROPERTY property );
-	void	clearSelectedEntitiesProperty( ccEntityAction::CLEAR_PROPERTY property );
+	enum FastRegistrationMode
+	{
+		MoveBBCenterToOrigin,
+		MoveBBMinCornerToOrigin,
+		MoveBBMaxCornerToOrigin
+	};
+
+	void doActionFastRegistration(FastRegistrationMode mode);
+
+	void toggleSelectedEntitiesProperty( ccEntityAction::TOGGLE_PROPERTY property );
+	void clearSelectedEntitiesProperty( ccEntityAction::CLEAR_PROPERTY property );
 	
-	virtual void setView( CC_VIEW_ORIENTATION view ) override;
+	void setView( CC_VIEW_ORIENTATION view ) override;
 	
 	//! Apply transformation to the selected entities
 	void applyTransformation(const ccGLMatrixd& transMat);
 
 	//! Creates point clouds from multiple 'components'
 	void createComponentsClouds(ccGenericPointCloud* cloud,
-								CCLib::ReferenceCloudContainer& components,
+								CCCoreLib::ReferenceCloudContainer& components,
 								unsigned minPointPerComponent,
 								bool randomColors,
 								bool selectComponents,
@@ -466,14 +485,14 @@ private:
 	void setOrthoView(ccGLWindow* win);
 	void setCenteredPerspectiveView(ccGLWindow* win, bool autoRedraw = true);
 	void setViewerPerspectiveView(ccGLWindow* win);
-
-	virtual void showEvent(QShowEvent* event) override;
-	virtual void closeEvent(QCloseEvent* event) override;
-	virtual void moveEvent(QMoveEvent* event) override;
-	virtual void resizeEvent(QResizeEvent* event) override;
-	virtual bool eventFilter(QObject *obj, QEvent *event) override;
-	virtual void keyPressEvent(QKeyEvent *event) override;
-
+	
+	void showEvent(QShowEvent* event) override;
+	void closeEvent(QCloseEvent* event) override;
+	void moveEvent(QMoveEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
+	bool eventFilter(QObject *obj, QEvent *event) override;
+	void keyPressEvent(QKeyEvent *event) override;
+	
 	//! Makes the window including an entity zoom on it (helper)
 	void zoomOn(ccHObject* object);
 
@@ -488,7 +507,7 @@ private:
 	//! Mesh computation fork
 	/** \param type triangulation type
 	**/
-	void doActionComputeMesh(CC_TRIANGULATION_TYPES type);
+	void doActionComputeMesh(CCCoreLib::TRIANGULATION_TYPES type);
 
 	//! Computes the orientation of an entity
 	/** Either fit a plane or a 'facet' (2D polygon)

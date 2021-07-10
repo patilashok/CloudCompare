@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>386</width>
-    <height>427</height>
+    <width>411</width>
+    <height>458</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -54,18 +54,12 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="text">
-         <string/>
-        </property>
        </widget>
       </item>
       <item row="0" column="0">
        <widget class="QToolButton" name="dataColorButton">
         <property name="enabled">
          <bool>false</bool>
-        </property>
-        <property name="text">
-         <string/>
         </property>
        </widget>
       </item>
@@ -186,7 +180,7 @@
             <enum>Qt::RightToLeft</enum>
            </property>
            <property name="text">
-            <string>1.0e-5</string>
+            <string notr="true">1.0e-5</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -218,7 +212,7 @@
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
            <property name="suffix">
-            <string>%</string>
+            <string notr="true">%</string>
            </property>
            <property name="minimum">
             <number>1</number>
@@ -260,63 +254,148 @@
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
-         <item>
-          <widget class="QFrame" name="threadCountFrame">
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_8">
-            <property name="leftMargin">
-             <number>0</number>
+        <widget class="QFrame" name="useNormalsFrame">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Normals</string>
             </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="normalsComboBox">
+            <property name="toolTip">
+             <string>options to take normals into account, to improve the registration result</string>
             </property>
             <item>
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>max thread count</string>
-              </property>
-             </widget>
+             <property name="text">
+              <string>Ignored</string>
+             </property>
             </item>
             <item>
-             <widget class="QSpinBox" name="maxThreadCountSpinBox">
-              <property name="toolTip">
-               <string>Maximum number of threads/cores to be used
+             <property name="text">
+              <string>Opposite side</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Same side</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Double-sided</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="threadingFrame">
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QFrame" name="threadCountFrame">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_8">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="label_6">
+               <property name="text">
+                <string>max thread count</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="maxThreadCountSpinBox">
+               <property name="toolTip">
+                <string>Maximum number of threads/cores to be used
 (CC or your computer might not respond for a while if you use all available cores)</string>
-              </property>
-              <property name="suffix">
-               <string> / 8</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
+               </property>
+               <property name="suffix">
+                <string notr="true"> / 8</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -382,22 +461,22 @@
            </property>
            <item>
             <property name="text">
-             <string>XYZ</string>
+             <string notr="true">XYZ</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>X</string>
+             <string notr="true">X</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Y</string>
+             <string notr="true">Y</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Z</string>
+             <string notr="true">Z</string>
             </property>
            </item>
           </widget>
@@ -442,7 +521,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Tx</string>
+              <string notr="true">Tx</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -458,7 +537,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Ty</string>
+              <string notr="true">Ty</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -474,7 +553,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Tz</string>
+              <string notr="true">Tz</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -504,7 +583,7 @@
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use the displayed scalar field as weights (the bigger its associated scalar value/weight is, the more influence the point will have).&lt;/p&gt;&lt;p&gt;Note that only absolute distances are considered (i.e. minimal weight is 0).&lt;/p&gt;&lt;p&gt;Weights are automatically normalized.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Data: use displayed S.F. as weights</string>
+          <string>Data: use displayed S.F. (absolute values) as weights</string>
          </property>
         </widget>
        </item>
@@ -514,7 +593,18 @@
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use the displayed scalar field as weights (the bigger its associated scalar value/weight is, the more influence the point will have).&lt;/p&gt;&lt;p&gt;Note that only absolute distances are considered (i.e. minimal weight is 0).&lt;/p&gt;&lt;p&gt;Weights are automatically normalized.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Model: use displayed S.F. as weights (only for clouds)</string>
+          <string>Model: use displayed S.F. (absolute values) as weights</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="useC2MSignedDistancesCheckBox">
+         <property name="toolTip">
+          <string>In combination with a small overlap, prevents
+the cloud from sinking under the mesh surface.</string>
+         </property>
+         <property name="text">
+          <string>Use C2M signed distances (mesh as reference only)</string>
          </property>
         </widget>
        </item>

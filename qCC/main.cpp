@@ -19,44 +19,84 @@
 
 //Qt
 #include <QDir>
-#include <QSplashScreen>
-#include <QPixmap>
 #include <QMessageBox>
+#include <QPixmap>
+#include <QSettings>
+#include <QSplashScreen>
 #include <QTime>
 #include <QTimer>
 #include <QTranslator>
-#include <QSettings>
+#ifdef CC_GAMEPAD_SUPPORT
+#include <QGamepadManager>
+#endif
 
 //qCC_db
+#include <ccColorScalesManager.h>
 #include <ccLog.h>
 #include <ccNormalVectors.h>
-#include <ccColorScalesManager.h>
 
 //qCC_io
 #include <FileIOFilter.h>
 #include <ccGlobalShiftManager.h>
 
 //local
-#include "mainwindow.h"
 #include "ccApplication.h"
-#include "ccGuiParameters.h"
 #include "ccCommandLineParser.h"
+#include "ccGuiParameters.h"
 #include "ccPersistentSettings.h"
+#include "mainwindow.h"
+#include "ccTranslationManager.h"
 
 //plugins
 #include "ccPluginInterface.h"
-#include "pluginManager/ccPluginManager.h"
+#include "ccPluginManager.h"
 
 #ifdef USE_VLD
-//VLD
 #include <vld.h>
 #endif
 
+
 int main(int argc, char **argv)
 {
-	ccApplication::init();
+#ifdef _WIN32 //This will allow printf to function on windows when opened from command line	
+	DWORD stdout_type = GetFileType(GetStdHandle(STD_OUTPUT_HANDLE));
+	if (AttachConsole(ATTACH_PARENT_PROCESS))
+	{
+		if (stdout_type == FILE_TYPE_UNKNOWN) // this will allow std redirection (./executable > out.txt)
+		{
+			freopen("CONOUT$", "w", stdout);
+			freopen("CONOUT$", "w", stderr);
+		}
+	}
+#endif
+
+#ifdef Q_OS_MAC
+	// On macOS, when double-clicking the application, the Finder (sometimes!) adds a command-line parameter
+	// like "-psn_0_582385" which is a "process serial number".
+	// We need to recognize this and discount it when determining if we are running on the command line or not.
+
+	int numRealArgs = argc;
 	
-	ccApplication app(argc, argv);
+	for ( int i = 1; i < argc; ++i )
+	{
+		if ( strncmp( argv[i], "-psn_", 5 ) == 0 )
+		{
+			--numRealArgs;
+		}
+	}
+	
+	bool commandLine = (numRealArgs > 1) && (argv[1][0] == '-');
+#else
+	bool commandLine = (argc > 1) && (argv[1][0] == '-');
+#endif
+   
+	ccApplication::initOpenGL();
+
+#ifdef CC_GAMEPAD_SUPPORT
+	QGamepadManager::instance(); //potential workaround to bug https://bugreports.qt.io/browse/QTBUG-61553
+#endif
+	
+	ccApplication app(argc, argv, commandLine);
 
 	//store the log message until a valid logging instance is registered
 	ccLog::EnableMessageBackup(true);
@@ -75,28 +115,16 @@ int main(int argc, char **argv)
 		ccGlobalShiftManager::SetMaxBoundgBoxDiagonal(maxAbsDiag);
 	}
 
-	//Command line mode?
-	bool commandLine = (argc > 1 && argv[1][0] == '-');
-	
 	//specific commands
 	int lastArgumentIndex = 1;
-	QTranslator translator;
 	if (commandLine)
 	{
 		//translation file selection
 		if (QString(argv[lastArgumentIndex]).toUpper() == "-LANG")
 		{
-			QString langFilename = QString(argv[2]);
+			QString langFilename = QString::fromLocal8Bit(argv[2]);
 
-			//Load translation file
-			if (translator.load(langFilename, QCoreApplication::applicationDirPath()))
-			{
-				qApp->installTranslator(&translator);
-			}
-			else
-			{
-				QMessageBox::warning(0, QObject::tr("Translation"), QObject::tr("Failed to load language file '%1'").arg(langFilename));
-			}
+			ccTranslationManager::get().loadTranslation(langFilename);
 			commandLine = false;
 			lastArgumentIndex += 2;
 		}
@@ -111,7 +139,7 @@ int main(int argc, char **argv)
 	{
 		if ((QGLFormat::openGLVersionFlags() & QGLFormat::OpenGL_Version_2_1) == 0)
 		{
-			QMessageBox::critical(0, "Error", "This application needs OpenGL 2.1 at least to run!");
+			QMessageBox::critical(nullptr, "Error", "This application needs OpenGL 2.1 at least to run!");
 			return EXIT_FAILURE;
 		}
 
@@ -128,7 +156,7 @@ int main(int argc, char **argv)
 	ccColorScalesManager::GetUniqueInstance(); //force pre-computed color tables initialization
 
 	//load the plugins
-	ccPluginManager::loadPlugins();
+	ccPluginManager::get().loadPlugins();
 	
 	int result = 0;
 
@@ -136,7 +164,7 @@ int main(int argc, char **argv)
 	if (commandLine)
 	{
 		//command line processing (no GUI)
-		result = ccCommandLineParser::Parse(argc, argv, ccPluginManager::pluginList());
+		result = ccCommandLineParser::Parse(argc, argv, ccPluginManager::get().pluginList());
 	}
 	else
 	{
@@ -144,7 +172,7 @@ int main(int argc, char **argv)
 		MainWindow* mainWindow = MainWindow::TheInstance();
 		if (!mainWindow)
 		{
-			QMessageBox::critical(0, "Error", "Failed to initialize the main application window?!");
+			QMessageBox::critical(nullptr, "Error", "Failed to initialize the main application window?!");
 			return EXIT_FAILURE;
 		}
 		mainWindow->initPlugins();
@@ -169,7 +197,7 @@ int main(int argc, char **argv)
 			QStringList filenames;
 			for (int i = lastArgumentIndex; i < argc; ++i)
 			{
-				QString arg(argv[i]);
+				QString arg = QString::fromLocal8Bit(argv[i]);
 				//special command: auto start a plugin
 				if (arg.startsWith(":start-plugin:"))
 				{
@@ -177,7 +205,7 @@ int main(int argc, char **argv)
 					QString pluginNameUpper = pluginName.toUpper();
 					//look for this plugin
 					bool found = false;
-					for ( ccPluginInterface *plugin : ccPluginManager::pluginList() )
+					for ( ccPluginInterface *plugin : ccPluginManager::get().pluginList() )
 					{
 						if (plugin->getName().replace(' ', '_').toUpper() == pluginNameUpper)
 						{
@@ -234,15 +262,15 @@ int main(int argc, char **argv)
 		}
 		catch (const std::exception& e)
 		{
-			QMessageBox::warning(0, "CC crashed!", QString("Hum, it seems that CC has crashed... Sorry about that :)\n") + e.what());
+			QMessageBox::warning(nullptr, "CC crashed!", QString("Hum, it seems that CC has crashed... Sorry about that :)\n") + e.what());
 		}
 		catch (...)
 		{
-			QMessageBox::warning(0, "CC crashed!", "Hum, it seems that CC has crashed... Sorry about that :)");
+			QMessageBox::warning(nullptr, "CC crashed!", "Hum, it seems that CC has crashed... Sorry about that :)");
 		}
 
 		//release the plugins
-		for ( ccPluginInterface *plugin : ccPluginManager::pluginList() )
+		for ( ccPluginInterface *plugin : ccPluginManager::get().pluginList() )
 		{
 			plugin->stop(); //just in case
 		}

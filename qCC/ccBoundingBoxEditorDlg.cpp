@@ -16,7 +16,12 @@
 //##########################################################################
 
 #include "ccBoundingBoxEditorDlg.h"
+
+//systems
 #include <limits>
+
+//Qt
+#include <QClipboard>
 
 //Box state at last dialog execution
 static ccBBox s_lastBBox;
@@ -45,30 +50,33 @@ ccBoundingBoxEditorDlg::ccBoundingBoxEditorDlg(QWidget* parent/*=0*/)
 	dyDoubleSpinBox->setMaximum(1.0e9);
 	dzDoubleSpinBox->setMaximum(1.0e9);
 
-	connect(pointTypeComboBox,	SIGNAL(currentIndexChanged(int)),	this,	SLOT(reflectChanges(int)));
-	connect(keepSquareCheckBox,	SIGNAL(toggled(bool)),				this,	SLOT(squareModeActivated(bool)));
-	connect(okPushButton,		SIGNAL(clicked()),					this,	SLOT(saveBoxAndAccept()));
-	connect(cancelPushButton,	SIGNAL(clicked()),					this,	SLOT(cancel()));
-	connect(defaultPushButton,	SIGNAL(clicked()),					this,	SLOT(resetToDefault()));
-	connect(lastPushButton,		SIGNAL(clicked()),					this,	SLOT(resetToLast()));
+	connect(keepSquareCheckBox,			&QCheckBox::toggled,	this,	&ccBoundingBoxEditorDlg::squareModeActivated);
+	connect(okPushButton,				&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::saveBoxAndAccept);
+	connect(cancelPushButton,			&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::cancel);
+	connect(defaultPushButton,			&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::resetToDefault);
+	connect(lastPushButton,				&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::resetToLast);
+	connect(fromClipboardPushButton,	&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::fromClipboardClicked);
+	connect(toClipboardPushButton,		&QPushButton::clicked,	this,	&ccBoundingBoxEditorDlg::toClipboardClicked);
 
-	connect(xDoubleSpinBox,		SIGNAL(valueChanged(double)),		this,	SLOT(updateCurrentBBox(double)));	
-	connect(yDoubleSpinBox,		SIGNAL(valueChanged(double)),		this,	SLOT(updateCurrentBBox(double)));	
-	connect(zDoubleSpinBox,		SIGNAL(valueChanged(double)),		this,	SLOT(updateCurrentBBox(double)));	
+	connect(pointTypeComboBox,	static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),				this,	&ccBoundingBoxEditorDlg::reflectChanges);
 
-	connect(dxDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(updateXWidth(double)));	
-	connect(dyDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(updateYWidth(double)));	
-	connect(dzDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(updateZWidth(double)));	
+	connect(xDoubleSpinBox,		static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateCurrentBBox);
+	connect(yDoubleSpinBox,		static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateCurrentBBox);	
+	connect(zDoubleSpinBox,		static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateCurrentBBox);	
 
-	connect(xOriXDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(xOriYDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(xOriZDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(yOriXDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(yOriYDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(yOriZDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(zOriXDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(zOriYDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
-	connect(zOriZDoubleSpinBox,	SIGNAL(valueChanged(double)),		this,	SLOT(onAxisValueChanged(double)));
+	connect(dxDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateXWidth);	
+	connect(dyDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateYWidth);	
+	connect(dzDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::updateZWidth);	
+
+	connect(xOriXDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(xOriYDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(xOriZDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(yOriXDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(yOriYDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(yOriZDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(zOriXDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(zOriYDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);
+	connect(zOriZDoubleSpinBox,	static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),		this,	&ccBoundingBoxEditorDlg::onAxisValueChanged);	
 
 	defaultPushButton->setVisible(false);
 	lastPushButton->setVisible(s_lastBBox.isValid());
@@ -210,7 +218,9 @@ void ccBoundingBoxEditorDlg::saveBoxAndAccept()
 {
 	if (oriGroupBox->isVisible())
 	{
-		CCVector3 X, Y, Z;
+		CCVector3d X;
+		CCVector3d Y;
+		CCVector3d Z;
 		getBoxAxes(X, Y, Z);
 		X.normalize();
 		Y.normalize();
@@ -223,9 +233,9 @@ void ccBoundingBoxEditorDlg::saveBoxAndAccept()
 			return;
 		}
 
-		//if (	fabs(X.dot(Y)) > 1.0e-6 
-		//	||	fabs(Y.dot(Z)) > 1.0e-6 
-		//	||	fabs(Z.dot(X)) > 1.0e-6 )
+		//if (	std::abs(X.dot(Y)) > 1.0e-6 
+		//	||	std::abs(Y.dot(Z)) > 1.0e-6 
+		//	||	std::abs(Z.dot(X)) > 1.0e-6 )
 		//{
 		//	ccLog::Error("Invalid axes definition: vectors must be orthogonal");
 		//	return;
@@ -285,7 +295,7 @@ void ccBoundingBoxEditorDlg::updateZWidth(double value)
 	updateCurrentBBox(value);
 	if (keepSquare())
 	{
-		MakeSquare(m_currentBBox,pointTypeComboBox->currentIndex(),2);
+		MakeSquare(m_currentBBox, pointTypeComboBox->currentIndex(), 2);
 		reflectChanges();
 		//base box (if valid) should always be included!
 		if (m_baseBBox.isValid())
@@ -305,13 +315,13 @@ void ccBoundingBoxEditorDlg::updateCurrentBBox(double dummy)
 	switch (pointTypeComboBox->currentIndex())
 	{
 	case 0: //A = min corner
-		m_currentBBox = ccBBox(A,A+W);
+		m_currentBBox = ccBBox(A, A + W);
 		break;
 	case 1: //A = center
-		m_currentBBox = ccBBox(A-W/2.0,A+W/2.0);
+		m_currentBBox = ccBBox(A - W / 2.0, A + W / 2.0);
 		break;
 	case 2: //A = max corner
-		m_currentBBox = ccBBox(A-W,A);
+		m_currentBBox = ccBBox(A - W, A);
 		break;
 	default:
 		assert(false);
@@ -375,7 +385,7 @@ void ccBoundingBoxEditorDlg::reflectChanges(int dummy)
 
 		CCVector3 W = m_currentBBox.getDiagVec();
 		//if 'square mode' is on, all width values should be the same!
-		assert(!keepSquare() || fabs(W.x-W.y)*1.0e-6 < 1.0 && fabs(W.x-W.z)*1.0e-6 < 1.0);
+		assert(!keepSquare() || std::abs(W.x - W.y)*1.0e-6 < 1.0 && std::abs(W.x - W.z)*1.0e-6 < 1.0);
 		dxDoubleSpinBox->setValue(W.x);
 		dyDoubleSpinBox->setValue(W.y);
 		dzDoubleSpinBox->setValue(W.z);
@@ -417,28 +427,30 @@ void ccBoundingBoxEditorDlg::setBoxAxes(const CCVector3& X, const CCVector3& Y, 
 	}
 }
 
-void ccBoundingBoxEditorDlg::getBoxAxes(CCVector3& X, CCVector3& Y, CCVector3& Z)
+void ccBoundingBoxEditorDlg::getBoxAxes(CCVector3d& X, CCVector3d& Y, CCVector3d& Z)
 {
-	X = CCVector3(	static_cast<PointCoordinateType>(xOriXDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(xOriYDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(xOriZDoubleSpinBox->value()) );
+	X = CCVector3d(	xOriXDoubleSpinBox->value(),
+					xOriYDoubleSpinBox->value(),
+					xOriZDoubleSpinBox->value() );
 
-	Y = CCVector3(	static_cast<PointCoordinateType>(yOriXDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(yOriYDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(yOriZDoubleSpinBox->value()) );
+	Y = CCVector3d(	yOriXDoubleSpinBox->value(),
+					yOriYDoubleSpinBox->value(),
+					yOriZDoubleSpinBox->value() );
 
-	Z = CCVector3(	static_cast<PointCoordinateType>(zOriXDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(zOriYDoubleSpinBox->value()),
-					static_cast<PointCoordinateType>(zOriZDoubleSpinBox->value()) );
+	Z = CCVector3d(	zOriXDoubleSpinBox->value(),
+					zOriYDoubleSpinBox->value(),
+					zOriZDoubleSpinBox->value() );
 }
 
 void ccBoundingBoxEditorDlg::onAxisValueChanged(double)
 {
-	CCVector3 X, Y, Z;
+	CCVector3d X;
+	CCVector3d Y;
+	CCVector3d Z;
 	getBoxAxes(X, Y, Z);
 
-	QDoubleSpinBox* vecSpinBoxes[3] = { 0, 0, 0 };
-	CCVector3 N(0, 0, 0);
+	QDoubleSpinBox* vecSpinBoxes[3] = { nullptr, nullptr, nullptr };
+	CCVector3d N(0, 0, 0);
 	if (oriXCheckBox->isChecked())
 	{
 		N = Y.cross(Z);
@@ -465,10 +477,69 @@ void ccBoundingBoxEditorDlg::onAxisValueChanged(double)
 		assert(false);
 	}
 
-	for (int i=0; i<3; ++i)
+	for (int i = 0; i < 3; ++i)
 	{
 		vecSpinBoxes[i]->blockSignals(true);
 		vecSpinBoxes[i]->setValue(N.u[i]);
 		vecSpinBoxes[i]->blockSignals(false);
+	}
+}
+
+void ccBoundingBoxEditorDlg::fromClipboardClicked()
+{
+	QClipboard* clipboard = QApplication::clipboard();
+	if (clipboard)
+	{
+		QString clipText = clipboard->text();
+		if (!clipText.isEmpty())
+		{
+			bool success = false;
+			ccGLMatrix matrix = ccGLMatrix::FromString(clipText, success);
+			if (success)
+			{
+				//set center
+				CCVector3 C = m_currentBBox.getCenter();
+				CCVector3 delta = matrix.getTranslationAsVec3D() - C;
+				m_currentBBox += delta;
+				reflectChanges();
+				//change axes
+				setBoxAxes(	matrix.getColumnAsVec3D(0),
+							matrix.getColumnAsVec3D(1),
+							matrix.getColumnAsVec3D(2) );
+			}
+			else
+			{
+				ccLog::Error("Failed to extract matrix from clipboard");
+			}
+		}
+		else
+		{
+			ccLog::Error("Clipboard is empty");
+
+		}
+	}
+}
+
+void ccBoundingBoxEditorDlg::toClipboardClicked()
+{
+	QClipboard* clipboard = QApplication::clipboard();
+	if (clipboard)
+	{
+		CCVector3 C = m_currentBBox.getCenter();
+
+		CCVector3d X;
+		CCVector3d Y;
+		CCVector3d Z;
+		getBoxAxes(X, Y, Z);
+
+		ccGLMatrix matrix;
+		matrix.setColumn(0, X.toPC());
+		matrix.setColumn(1, Y.toPC());
+		matrix.setColumn(2, Z.toPC());
+		matrix.setTranslation(C);
+
+		clipboard->setText(matrix.toString());
+		ccLog::Print("Matrix saved to clipboard:");
+		ccLog::Print(matrix.toString(12, ' ')); //full precision
 	}
 }
