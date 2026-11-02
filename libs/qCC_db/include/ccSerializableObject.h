@@ -1,0 +1,465 @@
+#pragma once
+
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
+
+// Local
+#include "ccLog.h"
+
+// CCCoreLib
+#include <CCPlatform.h>
+#include <CCTypes.h>
+
+// Qt
+#include <QDataStream>
+#include <QFile>
+#include <QMultiMap>
+
+// System
+#include <cassert>
+#include <cstdint>
+
+//! Serializable object interface
+class ccSerializableObject
+{
+  public:
+	//! Destructor
+	virtual ~ccSerializableObject() = default;
+
+	//! Returns whether object is serializable of not
+	virtual bool isSerializable() const
+	{
+		return false;
+	}
+
+	//! Saves data to binary stream
+	/** \param out			output file (already opened)
+	    \param dataVersion	target file version
+	    \return success
+	**/
+	virtual bool toFile(QFile& out, short dataVersion) const
+	{
+		return false;
+	}
+
+	//! Returns the minimum file version required to save this instance
+	/** To be overridden
+	    \param out output file (already opened)
+	    \return success
+	**/
+	virtual short minimumFileVersion() const = 0;
+
+	//! Deserialization flags (bit-field)
+	enum DeserializationFlags
+	{
+		DF_POINT_COORDS_64_BITS = 1, /**< Point coordinates are stored as 64 bits double (otherwise 32 bits floats) **/
+		// DGM: inversion is 'historical' ;)
+		DF_SCALAR_VAL_32_BITS = 2, /**< Scalar values are stored as 32 bits floats (otherwise 64 bits double) **/
+	};
+
+	//! Loading context
+	struct LoadingContext
+	{
+		//! Default constructor
+		LoadingContext(short _dataVersion, int _flags)
+		    : dataVersion(_dataVersion)
+		    , flags(_flags)
+		{
+		}
+
+		//! Map of loaded unique IDs (old ID --> new ID)
+		using LoadedIDMap = QMultiMap<unsigned, unsigned>;
+
+		//! Dependency structure
+		struct Dependency
+		{
+			//! Dependency type
+			enum Type
+			{
+				NONE                    = 0,  //!< no dependency
+				LABEL_SOURCE_CLOUD      = 1,  //!< 2D label depends on a cloud
+				LABEL_SOURCE_MESH       = 2,  //!< 2D label depends on a mesh
+				FACET_ORIGIN_POINTS     = 3,  //!< Facet depends on a set of points (origin)
+				FACET_CONTOUR_VERTICES  = 4,  //!< Facet depends on a set of points (contour)
+				FACET_CONTOUR_POLYLINE  = 5,  //!< Facet depends on a polyline (contour)
+				FACET_POLYGON_MESH      = 6,  //!< Facet depends on a polygon mesh
+				IMAGE_SENSOR            = 7,  //!< Image depends on a sensor
+				MESH_VERTICES_CLOUD     = 8,  //!< Mesh depends on a vertices cloud
+				MESH_TRI_NORMALS        = 9,  //!< Mesh depends on a triangle normals array
+				MESH_TEXTURE_COORDS     = 10, //!< Mesh depends on a texture coordinates array
+				MESH_MATERIALS          = 11, //!< Mesh depends on a materials set
+				POLYLINE_VERTICES_CLOUD = 12, //!< Polyline depends on a vertices cloud
+				SENSOR_POSITIONS_BUFFER = 13, //!< Sensor depends on a positions buffer
+				SUBMESH_ASSOCIATED_MESH = 14, //!< Sub-mesh depends on a parent mesh
+			};
+
+			//! Default constructor
+			Dependency(uint32_t _objectID = 0, Type _type = NONE)
+			    : objectID(_objectID)
+			    , type(_type)
+			{
+			}
+
+			uint32_t objectID; //!< Object ID
+			Type     type;     //!< Dependency type (see DEPENDENCY_TYPES)
+		};
+
+		//! Map of incomplete entities (due to missing dependencies)
+		QMap<ccSerializableObject*, std::vector<Dependency>> incompleteEntities;
+
+		short       dataVersion;   //!< File version
+		int         flags;         //!< Deserialization flags (see ccSerializableObject::DeserializationFlags)
+		LoadedIDMap oldToNewIDMap; //!< Map to link old IDs with new IDs
+	};
+
+	//! Loads data from binary stream
+	/** \param in input file (already opened)
+	    \param loadingContext loading context
+	    \return success
+	**/
+	virtual bool fromFile(QFile& in, LoadingContext& context)
+	{
+		return false;
+	}
+
+	//! Sends a custom error message (write error) and returns 'false'
+	/** Shortcut for returning a standardized error message in the toFile method.
+	    \return always false
+	**/
+	static bool WriteError()
+	{
+		ccLog::Error("Write error (disk full or no access right?)");
+		return false;
+	}
+
+	//! Sends a custom error message (read error) and returns 'false'
+	/** Shortcut for returning a standardized error message in the fromFile method.
+	    \return always false
+	**/
+	static bool ReadError()
+	{
+		ccLog::Error("Read error (corrupted file or no access right?)");
+		return false;
+	}
+
+	//! Sends a custom error message (not enough memory) and returns 'false'
+	/** Shortcut for returning a standardized error message in the fromFile method.
+	    \return always false
+	**/
+	static bool MemoryError()
+	{
+		ccLog::Error("Not enough memory");
+		return false;
+	}
+
+	//! Sends a custom error message (corrupted file) and returns 'false'
+	/** Shortcut for returning a standardized error message in the fromFile method.
+	    \return always false
+	**/
+	static bool CorruptError()
+	{
+		ccLog::Error("File seems to be corrupted");
+		return false;
+	}
+};
+
+//! Serialization helpers
+class ccSerializationHelper
+{
+  public:
+	//! Reads one or several 'PointCoordinateType' values from a QDataStream either in float or double format depending on the 'flag' value
+	static void CoordsFromDataStream(QDataStream& stream, int flags, PointCoordinateType* out, unsigned count = 1)
+	{
+		if (flags & ccSerializableObject::DF_POINT_COORDS_64_BITS)
+		{
+			for (unsigned i = 0; i < count; ++i, ++out)
+			{
+				double val;
+				stream >> val;
+				*out = static_cast<PointCoordinateType>(val);
+			}
+		}
+		else
+		{
+			for (unsigned i = 0; i < count; ++i, ++out)
+			{
+				float val;
+				stream >> val;
+				*out = static_cast<PointCoordinateType>(val);
+			}
+		}
+	}
+
+	//! Reads one or several 'ScalarType' values from a QDataStream either in float or double format depending on the 'flag' value
+	static void ScalarsFromDataStream(QDataStream& stream, int flags, ScalarType* out, unsigned count = 1)
+	{
+		if (flags & ccSerializableObject::DF_SCALAR_VAL_32_BITS)
+		{
+			for (unsigned i = 0; i < count; ++i, ++out)
+			{
+				float val;
+				stream >> val;
+				*out = static_cast<PointCoordinateType>(val);
+			}
+		}
+		else
+		{
+			for (unsigned i = 0; i < count; ++i, ++out)
+			{
+				double val;
+				stream >> val;
+				*out = static_cast<PointCoordinateType>(val);
+			}
+		}
+	}
+
+	//! Returns the minimum file version to save/load a 'generic array'
+	static short GenericArrayToFileMinVersion()
+	{
+		return 20;
+	}
+
+	//! Helper: saves a vector to file
+	/** \param data vector to save (must be allocated)
+	    \param out output file (must be already opened)
+	    \return success
+	**/
+	template <class Type, int N, class ComponentType>
+	static bool GenericArrayToFile(const std::vector<Type>& data, QFile& out)
+	{
+		assert(out.isOpen() && (out.openMode() & QIODevice::WriteOnly));
+
+		// removed to allow saving empty clouds
+		// if (data.empty())
+		//{
+		//	return ccSerializableObject::MemoryError();
+		// }
+
+		// component count (dataVersion>=20)
+		::uint8_t componentCount = static_cast<::uint8_t>(N);
+		if (out.write((const char*)&componentCount, 1) < 0)
+			return ccSerializableObject::WriteError();
+
+		// element count = array size (dataVersion>=20)
+		::uint32_t elementCount = static_cast<::uint32_t>(data.size());
+		if (out.write((const char*)&elementCount, 4) < 0)
+			return ccSerializableObject::WriteError();
+
+		// array data (dataVersion>=20)
+		{
+			// DGM: do it by chunks, in case it's too big to be processed by the system
+			const char* _data     = (const char*)data.data();
+			qint64      byteCount = static_cast<qint64>(elementCount);
+			byteCount *= sizeof(Type);
+			while (byteCount != 0)
+			{
+				static const qint64 s_maxByteSaveCount = (1 << 26); // 64 Mb each time
+				qint64              saveCount          = std::min(byteCount, s_maxByteSaveCount);
+				if (out.write(_data, saveCount) < 0)
+					return ccSerializableObject::WriteError();
+				_data += saveCount;
+				byteCount -= saveCount;
+			}
+		}
+		return true;
+	}
+
+	//! Helper: loads a vector structure from file
+	/** \param data vector to load
+	    \param in input file (must be already opened)
+	    \param dataVersion version current data version
+	    \return success
+	**/
+	template <class Type, int N, class ComponentType>
+	static bool GenericArrayFromFile(std::vector<Type>& data,
+	                                 QFile&             in,
+	                                 short              dataVersion,
+	                                 const QString&     verboseDescription)
+	{
+		::uint8_t  componentCount = 0;
+		::uint32_t elementCount   = 0;
+		if (!ReadArrayHeader(in, dataVersion, componentCount, elementCount))
+		{
+			return false;
+		}
+		if (componentCount != N)
+		{
+			return ccSerializableObject::CorruptError();
+		}
+
+		ccLog::PrintVerbose(QString("Loading %0: %1 elements and %2 dimension(s)").arg(verboseDescription).arg(elementCount).arg(componentCount));
+
+		if (elementCount)
+		{
+			// try to allocate memory
+			try
+			{
+				data.resize(elementCount);
+			}
+			catch (const std::bad_alloc&)
+			{
+				return ccSerializableObject::MemoryError();
+			}
+
+			// array data (dataVersion>=20)
+			{
+				// Apparently Qt and/or Windows don't like to read too many bytes in a row...
+				static const qint64 MaxElementPerChunk = (static_cast<qint64>(1) << 24);
+				assert(sizeof(ComponentType) * N == sizeof(Type));
+				qint64 byteCount = static_cast<qint64>(data.size()) * (sizeof(ComponentType) * N);
+				char*  dest      = (char*)data.data();
+				while (byteCount > 0)
+				{
+					qint64 chunkSize = std::min(MaxElementPerChunk, byteCount);
+					if (in.read(dest, chunkSize) < 0)
+					{
+						return ccSerializableObject::ReadError();
+					}
+					byteCount -= chunkSize;
+					dest += chunkSize;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	//! Helper: loads a vector structure from a file stored with a different type
+	/** \param data vector to load
+	    \param in input file (must be already opened)
+	    \param dataVersion version current data version
+	    \param _autoOffset optional: automatic offset to be applied at loading time (based on the first eleemnt)
+	    \return success
+	**/
+	template <class Type, int N, class ComponentType, class FileComponentType>
+	static bool GenericArrayFromTypedFile(std::vector<Type>& data,
+	                                      QFile&             in,
+	                                      short              dataVersion,
+	                                      const QString&     verboseDescription,
+	                                      FileComponentType* _autoOffset = nullptr)
+	{
+		::uint8_t  componentCount = 0;
+		::uint32_t elementCount   = 0;
+		if (!ReadArrayHeader(in, dataVersion, componentCount, elementCount))
+		{
+			return false;
+		}
+		if (componentCount != N)
+		{
+			return ccSerializableObject::CorruptError();
+		}
+
+		ccLog::PrintVerbose(QString("Loading %0: %1 elements and %2 dimension(s)").arg(verboseDescription).arg(elementCount).arg(componentCount));
+
+		if (elementCount)
+		{
+			// try to allocate memory
+			try
+			{
+				data.resize(elementCount);
+			}
+			catch (const std::bad_alloc&)
+			{
+				return ccSerializableObject::MemoryError();
+			}
+
+			// array data (dataVersion>=20)
+			//--> sadly we can't read it as a block...
+			// we must convert each element, value by value!
+			FileComponentType dummyArray[N]{0};
+
+			ComponentType* _data = (ComponentType*)data.data();
+
+			size_t elementSize = sizeof(FileComponentType) * N;
+
+			if (_autoOffset)
+			{
+				// read the first element
+				if (in.read((char*)dummyArray, elementSize) >= 0)
+				{
+					for (unsigned k = 0; k < N; ++k)
+					{
+						*_autoOffset = dummyArray[k];
+						*_data++     = 0;
+					}
+				}
+				else
+				{
+					return ccSerializableObject::ReadError();
+				}
+
+				// read the next elements
+				for (unsigned i = 1; i < elementCount; ++i)
+				{
+					if (in.read((char*)dummyArray, elementSize) >= 0)
+					{
+						for (unsigned k = 0; k < N; ++k)
+						{
+							*_data++ = static_cast<ComponentType>(dummyArray[k] - _autoOffset[k]);
+						}
+					}
+					else
+					{
+						return ccSerializableObject::ReadError();
+					}
+				}
+			}
+			else
+			{
+				// no automatic offset
+				for (unsigned i = 0; i < elementCount; ++i)
+				{
+					if (in.read((char*)dummyArray, sizeof(FileComponentType) * N) >= 0)
+					{
+						for (unsigned k = 0; k < N; ++k)
+						{
+							*_data++ = static_cast<ComponentType>(dummyArray[k]);
+						}
+					}
+					else
+					{
+						return ccSerializableObject::ReadError();
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+  protected:
+	static bool ReadArrayHeader(QFile&      in,
+	                            short       dataVersion,
+	                            ::uint8_t&  componentCount,
+	                            ::uint32_t& elementCount)
+	{
+		assert(in.isOpen() && (in.openMode() & QIODevice::ReadOnly));
+
+		if (dataVersion < 20)
+			return ccSerializableObject::CorruptError();
+
+		// component count (dataVersion>=20)
+		if (in.read((char*)&componentCount, 1) < 0)
+			return ccSerializableObject::ReadError();
+
+		// element count = array size (dataVersion>=20)
+		if (in.read((char*)&elementCount, 4) < 0)
+			return ccSerializableObject::ReadError();
+
+		return true;
+	}
+};

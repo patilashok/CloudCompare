@@ -1,80 +1,101 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccAdjustZoomDlg.h"
 
-//local
-#include "ccGLWindow.h"
+// qCC_glWindow
+#include <ccGLWindowInterface.h>
 
-ccAdjustZoomDlg::ccAdjustZoomDlg(ccGLWindow* win, QWidget* parent/*=0*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::AdjustZoomDialog()
-	, m_basePixelSize(1.0)
+ccAdjustZoomDlg::ccAdjustZoomDlg(ccGLWindowInterface* win, QWidget* parent /*=nullptr*/)
+    : QDialog(parent, Qt::Tool)
+    , Ui::AdjustZoomDialog()
+    , m_windowWidth_pix(0)
+    , m_distanceToWidthRatio(0.0)
 {
 	setupUi(this);
 
 	if (win)
 	{
-		windowLabel->setText(QString("%1 [%2 x %3]").arg(win->windowTitle()).arg(win->glWidth()).arg(win->glHeight()));
-		
+		windowLabel->setText(QString("%1 [%2 x %3]").arg(win->getWindowTitle()).arg(win->glWidth()).arg(win->glHeight()));
+
 		const ccViewportParameters& params = win->getViewportParameters();
 		assert(!params.perspectiveView);
 
-		m_basePixelSize = params.pixelSize;
-		zoomDoubleSpinBox->setValue(params.zoom);
+		m_windowWidth_pix = win->glWidth();
+		if (m_windowWidth_pix < 1)
+		{
+			assert(false);
+			m_windowWidth_pix = 1;
+		}
+
+		m_distanceToWidthRatio = params.computeDistanceToWidthRatio(win->glWidth(), win->glHeight());
+		if (m_distanceToWidthRatio <= 0.0)
+		{
+			assert(false);
+			m_distanceToWidthRatio = 1.0;
+		}
+
+		double focalDist = params.getFocalDistance();
+		focalDoubleSpinBox->setValue(focalDist);
+
 		pixelCountSpinBox->setValue(1);
-		pixelSizeDoubleSpinBox->setValue(params.pixelSize / params.zoom);
+		pixelSizeDoubleSpinBox->setValue(focalDist * m_distanceToWidthRatio / m_windowWidth_pix);
 	}
 	else
 	{
 		windowLabel->setText("Error");
 	}
 
-	connect(zoomDoubleSpinBox,		SIGNAL(valueChanged(double)),	this, SLOT(onZoomChanged(double)));
-	connect(pixelSizeDoubleSpinBox,	SIGNAL(valueChanged(double)),	this, SLOT(onPixelSizeChanged(double)));
-	connect(pixelCountSpinBox,		SIGNAL(valueChanged(int)),		this, SLOT(onPixelCountChanged(int)));
+	connect(focalDoubleSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &ccAdjustZoomDlg::onFocalChanged);
+	connect(pixelSizeDoubleSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &ccAdjustZoomDlg::onPixelSizeChanged);
+	connect(pixelCountSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &ccAdjustZoomDlg::onPixelCountChanged);
 }
 
-double ccAdjustZoomDlg::getZoom() const
+double ccAdjustZoomDlg::getFocalDistance() const
 {
-	return zoomDoubleSpinBox->value();
+	return focalDoubleSpinBox->value();
 }
 
-ccAdjustZoomDlg::~ccAdjustZoomDlg()
+void ccAdjustZoomDlg::onFocalChanged(double focalDist)
 {
-}
+	assert(pixelCountSpinBox->value() > 0);
 
-void ccAdjustZoomDlg::onZoomChanged(double zoom)
-{
 	pixelSizeDoubleSpinBox->blockSignals(true);
-	pixelSizeDoubleSpinBox->setValue( m_basePixelSize * static_cast<double>(pixelCountSpinBox->value()) / zoom );
+	double pixelSizeNPixels = (focalDist * m_distanceToWidthRatio * pixelCountSpinBox->value()) / m_windowWidth_pix;
+	pixelSizeDoubleSpinBox->setValue(pixelSizeNPixels);
 	pixelSizeDoubleSpinBox->blockSignals(false);
 }
 
-void ccAdjustZoomDlg::onPixelSizeChanged(double ps)
+void ccAdjustZoomDlg::onPixelSizeChanged(double pixelSizeNPixels)
 {
-	zoomDoubleSpinBox->blockSignals(true);
-	zoomDoubleSpinBox->setValue( m_basePixelSize * static_cast<double>(pixelCountSpinBox->value()) / ps );
-	zoomDoubleSpinBox->blockSignals(false);
+	assert(pixelCountSpinBox->value() > 0);
+
+	focalDoubleSpinBox->blockSignals(true);
+	double focalDist = (pixelSizeNPixels * m_windowWidth_pix) / (pixelCountSpinBox->value() * m_distanceToWidthRatio);
+	focalDoubleSpinBox->setValue(focalDist);
+	focalDoubleSpinBox->blockSignals(false);
 }
 
-void ccAdjustZoomDlg::onPixelCountChanged(int count)
+void ccAdjustZoomDlg::onPixelCountChanged(int pixelCount)
 {
+	assert(pixelCount > 0);
+
 	pixelSizeDoubleSpinBox->blockSignals(true);
-	pixelSizeDoubleSpinBox->setValue( m_basePixelSize * static_cast<double>(count) / zoomDoubleSpinBox->value() );
+	double pixelSizeNPixels = (focalDoubleSpinBox->value() * m_distanceToWidthRatio * pixelCount) / m_windowWidth_pix;
+	pixelSizeDoubleSpinBox->setValue(pixelSizeNPixels);
 	pixelSizeDoubleSpinBox->blockSignals(false);
 }

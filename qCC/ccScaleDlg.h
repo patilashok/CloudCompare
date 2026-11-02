@@ -1,40 +1,43 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#                    COPYRIGHT: Daniel Girardeau-Montaut                 #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_SCALE_DLG_HEADER
-#define CC_SCALE_DLG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #                    COPYRIGHT: Daniel Girardeau-Montaut                 #
+// #                                                                        #
+// ##########################################################################
 
-//CC_Lib
+// CCCoreLib
 #include <CCGeom.h>
 
-//Qt
+// Qt
 #include <QDialog>
 
-#include <ui_scaleDlg.h>
+namespace Ui
+{
+	class ScaleDialog;
+}
 
 //! Scale / multiply dialog
-class ccScaleDlg : public QDialog, public Ui::ScaleDialog
+class ccScaleDlg : public QDialog
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
-	explicit ccScaleDlg(QWidget* parent = 0);
+	explicit ccScaleDlg(QWidget* parent = nullptr);
+
+	~ccScaleDlg() override;
 
 	//! Returns scales
 	CCVector3d getScales() const;
@@ -48,13 +51,9 @@ public:
 	//! Saves state
 	void saveState();
 
-protected slots:
-
+  private:
 	void allDimsAtOnceToggled(bool);
 	void fxUpdated(double);
 
-protected:
-
+	std::unique_ptr<Ui::ScaleDialog> m_ui;
 };
-
-#endif //CC_SCALE_DLG_HEADER

@@ -1,0 +1,15 @@
+option( PLUGIN_IO_QCORE "Install the CoreIO plugin" ON )
+
+if( PLUGIN_IO_QCORE )
+	project( QCORE_IO_PLUGIN )
+
+	AddPlugin( NAME ${PROJECT_NAME} TYPE io )
+
+	add_subdirectory( include )
+	add_subdirectory( src )
+	add_subdirectory( ui )
+
+	if( BUILD_TESTING )
+		add_subdirectory( test )
+	endif()
+endif()

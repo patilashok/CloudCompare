@@ -1,20 +1,23 @@
-cmake_minimum_required(VERSION 3.0)
+project( CloudCompare VERSION 2.14.0 )
 
-project( CloudCompare VERSION 2.9.0 )
+include( CMakePolicies NO_POLICY_SCOPE )
 
-include_directories( ${CC_FBO_LIB_SOURCE_DIR}/include )
-include_directories( ${CC_CORE_LIB_SOURCE_DIR}/include )
-include_directories( ${QCC_DB_LIB_SOURCE_DIR} )
-if( MSVC )
-   include_directories( ${QCC_DB_LIB_SOURCE_DIR}/msvc )
+option( CC_USE_EIGEN
+	"Compile CloudCompare with Eigen (for registration)"
+	OFF
+)
+
+if ( CC_USE_EIGEN )
+	set ( EIGEN_ROOT_DIR "" CACHE PATH "Eigen root (contains the Eigen directory)" )
+	if ( NOT EIGEN_ROOT_DIR )
+		message( SEND_ERROR "No Eigen root directory specified (EIGEN_ROOT_DIR)" )
+	endif()
 endif()
-include_directories( ${QCC_IO_LIB_SOURCE_DIR} )
-include_directories( ${QCC_GL_LIB_SOURCE_DIR} )
+
 include_directories( ${CloudComparePlugins_SOURCE_DIR} )
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/db_tree )
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ui_templates )
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../libs/qcustomplot )
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
 file( GLOB header_list *.h  )
@@ -28,70 +31,62 @@ file( GLOB txt_list TODO.txt ${CloudCompareProjects_SOURCE_DIR}/CHANGELOG.md )
 add_subdirectory( db_tree )
 add_subdirectory( pluginManager )
 
-# 3DX support (3dConnexion devices)
-if ( ${OPTION_SUPPORT_3DCONNEXION_DEVICES} )
-	add_subdirectory( devices/3dConnexion )
-endif()	
+add_subdirectory( extern/QCustomPlot EXCLUDE_FROM_ALL )
 
-# Gamepad support (requires Qt 5.7+)
-if ( ${OPTION_SUPPORT_GAMEPADS} )
-	add_subdirectory( devices/gamepad )
-endif()	
-
-qt5_wrap_ui( generated_ui_list ${ui_list} )
-qt5_add_resources( generated_qrc_list ${qrc_list} )
+qt6_wrap_ui( generated_ui_list ${ui_list} )
+qt6_add_resources( generated_qrc_list ${qrc_list} )
 
 if( MSVC )
 	# App icon with MSVC
 	set( rc_list images/icon/cc_icon.rc )
 
 	#to get rid of the (system) console
-	add_executable( ${PROJECT_NAME} WIN32 ${header_list} ${source_list} ${generated_ui_list} ${generated_qrc_list} ${rc_list} ${txt_list} )
-elseif( APPLE )
+	add_executable( ${PROJECT_NAME} WIN32 ${header_list} ${source_list} ${generated_ui_list} ${generated_qrc_list} ${rc_list} ${txt_list} ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/windows/qt5.natvis )
+elseif( CC_MACOS_BUNDLE )
 	add_executable( ${PROJECT_NAME} MACOSX_BUNDLE ${header_list} ${source_list} ${generated_ui_list} ${generated_qrc_list} ${txt_list} )
 else()
 	add_executable( ${PROJECT_NAME} ${header_list} ${source_list} ${generated_ui_list} ${generated_qrc_list} ${rc_list} ${txt_list} )
 endif()
 
-target_link_libraries( ${PROJECT_NAME} CC_FBO_LIB )
-target_link_libraries( ${PROJECT_NAME} CC_CORE_LIB )
-target_link_libraries( ${PROJECT_NAME} QCC_DB_LIB )
-target_link_libraries( ${PROJECT_NAME} QCC_IO_LIB )
-target_link_libraries( ${PROJECT_NAME} QCC_GL_LIB )
-target_link_libraries( ${PROJECT_NAME} qcustomplot )
+target_link_libraries( ${PROJECT_NAME}
+	PRIVATE
+		CCAppCommon
+		QCustomPlot
+		QPCP_LIB
+		Qt6::PrintSupport
+		Qt6::Widgets
+		Qt6::OpenGLWidgets
+		Qt6::OpenGL
+)
 
-# Qt
-target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Gui Qt5::Widgets Qt5::OpenGL Qt5::PrintSupport)
-if (WIN32)
-	target_link_libraries( ${PROJECT_NAME} Qt5::WinMain )
+if( CCCORELIB_USE_QT_CONCURRENT )
+	# We want *deployqt to handle this dependency, so instead of just copying the file
+	# link to the target.
+	target_link_libraries( ${PROJECT_NAME}
+		PRIVATE
+			Qt6::Concurrent
+	)
 endif()
 
-# contrib. libraries support
-if( APPLE )
-	target_link_contrib( ${PROJECT_NAME} ${CLOUDCOMPARE_MAC_FRAMEWORK_DIR} )
-elseif( UNIX )
-	target_link_contrib( ${PROJECT_NAME} lib/cloudcompare )
-else()
-	target_link_contrib( ${PROJECT_NAME} ${CLOUDCOMPARE_DEST_FOLDER} )
-endif()
+# Eigen
+if ( CC_USE_EIGEN )
 
-# 3dConnexion devices support
-if ( ${OPTION_SUPPORT_3DCONNEXION_DEVICES} )
-	target_link_3DXWARE( ${PROJECT_NAME} )
-endif()
-# Gamepad support (requires Qt 5.7+)
-if ( ${OPTION_SUPPORT_GAMEPADS} )
-	target_link_GAMEPADS( ${PROJECT_NAME} )
+	target_include_directories( ${PROJECT_NAME}
+		PUBLIC
+			${EIGEN_ROOT_DIR}
+	)
+
+	target_compile_definitions( ${PROJECT_NAME}
+		PUBLIC
+			CC_USES_EIGEN
+	)
+
 endif()
 
 # Add custom preprocessor definitions
-if (OPTION_GL_QUAD_BUFFER_SUPPORT)
-	set_property( TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS CC_GL_WINDOW_USE_QWINDOW )
-endif()
 if( WIN32 )
-	set_property( TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS CC_USE_AS_DLL QCC_DB_USE_AS_DLL QCC_IO_USE_AS_DLL )
 	if (MSVC)
-		SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINK_FLAGS " /MANIFEST:NO")
+		set_target_properties( ${PROJECT_NAME} PROPERTIES LINK_FLAGS " /MANIFEST:NO" )
 	endif()
 endif()
 
@@ -105,56 +100,45 @@ if( WIN32 )
 	endif()
 endif()
 
-# install program
-install_ext( TARGETS ${PROJECT_NAME} ${CLOUDCOMPARE_DEST_FOLDER} )
+if (NOT CC_MACOS_BUNDLE)
+	# Install program.
+	# On macOs, the DeployQt step will install the bundle that contains the executable with
+	# library paths properly set, reinstalling the executable here would break the bundle.
+	install_ext( TARGETS ${PROJECT_NAME} ${CLOUDCOMPARE_DEST_FOLDER} "" )
+endif()
 
 # Auxiliary files
 set( auxFiles  ${CloudCompareProjects_SOURCE_DIR}/CHANGELOG.md bin_other/license.txt bin_other/global_shift_list_template.txt )
 
 if( WIN32 )
-	# Export Qt dlls
-	install_Qt_Dlls( ${CLOUDCOMPARE_DEST_FOLDER} ${OPTION_SUPPORT_GAMEPADS} )
-	install_Qt_ImageFormats( ${CLOUDCOMPARE_DEST_FOLDER} )
-	install_Qt5_plugins( ${CLOUDCOMPARE_DEST_FOLDER} )
-
 	# Additional auxiliary file(s)
 	file( GLOB batch_list bin_other/*.bat )
 	list( APPEND auxFiles ${batch_list} )
 endif()
 
-# Translation file(s)
-file( GLOB trFiles tr/*.qm )
-
 # Install auxiliary files
-if( WIN32 OR APPLE )
+if( WIN32 OR CC_MACOS_BUNDLE )
 	foreach( filename ${auxFiles} )
-		install_ext( FILES ${filename} ${CLOUDCOMPARE_DEST_FOLDER} )
-	endforeach()
-	foreach( filename ${trFiles} )
-		install_ext( FILES ${filename} ${CLOUDCOMPARE_DEST_FOLDER} /tr )
+		install_ext( FILES ${filename} ${CLOUDCOMPARE_DEST_FOLDER} "" )
 	endforeach()
 else( UNIX )
 	foreach( filename ${auxFiles} )
-		install_ext( FILES ${filename} share/cloudcompare )
-	endforeach()
-	foreach( filename ${trFiles} )
-		install_ext( FILES ${filename} share/cloudcompare /tr )
+		install_ext( FILES ${filename} share/cloudcompare "" )
 	endforeach()
 endif()
 
-# in order to ensure that everything else is installed first, put the Mac bundling in its own subdirectory
-if( APPLE )
-    set_target_properties( ${PROJECT_NAME} PROPERTIES
-        INSTALL_RPATH "@executable_path/../Frameworks"
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Mac/CloudCompare.plist )
-
-    set( MACOSX_BUNDLE_ICON_FILE cc_icon.icns ) 
-    set( MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}" )
-    set( MACOSX_BUNDLE_LONG_VERSION_STRING "${PROJECT_VERSION}" )
-    set( MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}" )
-    
+# Put together our Application bundle on macOS
+if( CC_MACOS_BUNDLE )    
     add_subdirectory( Mac )
 endif()
+
+# Testing
+if ( BUILD_TESTING )
+	add_subdirectory( test )
+endif()
+
+# Translation
+add_subdirectory(translations)
 
 ## Shaders
 # Copy shader dirs into our shadow build directory
@@ -162,16 +146,66 @@ file( COPY ${CC_FBO_LIB_SOURCE_DIR}/shaders DESTINATION "${CMAKE_BINARY_DIR}" )
 file( COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION "${CMAKE_BINARY_DIR}" )
 
 # Export common shader files to all install destinations
-if( APPLE )	
+if( CC_MACOS_BUNDLE )	
 	install( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.frag DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/Bilateral )
 	install( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.vert DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/Bilateral )
 	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ColorRamp/color_ramp.frag DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/ColorRamp )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.vs DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/DrawNormals )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.gs DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/DrawNormals )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.fs DESTINATION ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders/DrawNormals )
 elseif( UNIX )
 	install( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.frag DESTINATION share/cloudcompare/shaders/Bilateral )
 	install( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.vert DESTINATION share/cloudcompare/shaders/Bilateral )
 	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ColorRamp/color_ramp.frag DESTINATION share/cloudcompare/shaders/ColorRamp )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.vs DESTINATION share/cloudcompare/shaders/DrawNormals )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.gs DESTINATION share/cloudcompare/shaders/DrawNormals )
+	install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.fs DESTINATION share/cloudcompare/shaders/DrawNormals )
+
 else()
 	install_ext( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.frag ${CLOUDCOMPARE_DEST_FOLDER} /shaders/Bilateral )
 	install_ext( FILES ${CC_FBO_LIB_SOURCE_DIR}/shaders/Bilateral/bilateral.vert ${CLOUDCOMPARE_DEST_FOLDER} /shaders/Bilateral )
 	install_ext( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ColorRamp/color_ramp.frag ${CLOUDCOMPARE_DEST_FOLDER} /shaders/ColorRamp )
+	install_ext( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.vs ${CLOUDCOMPARE_DEST_FOLDER} /shaders/DrawNormals )
+	install_ext( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.gs ${CLOUDCOMPARE_DEST_FOLDER} /shaders/DrawNormals )
+	install_ext( FILES ${CMAKE_CURRENT_SOURCE_DIR}/shaders/DrawNormals/DrawNormals.fs ${CLOUDCOMPARE_DEST_FOLDER} /shaders/DrawNormals )
 endif()
+
+# Install plugins and shaders in the correct folder for each platform
+if( CC_MACOS_BUNDLE )	
+	InstallPlugins(
+		DEST_PATH "${CLOUDCOMPARE_MAC_PLUGIN_DIR}"
+		SHADER_DEST_PATH "${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Shaders"
+	)
+elseif( UNIX )
+	InstallPlugins(
+		DEST_PATH "${CMAKE_INSTALL_LIBDIR}/cloudcompare/plugins"
+		SHADER_DEST_PATH share/cloudcompare/shaders
+	)
+else()
+	InstallPlugins(
+		DEST_PATH "${CLOUDCOMPARE_DEST_FOLDER}"
+		DEST_FOLDER "plugins"
+		SHADER_DEST_PATH "${CLOUDCOMPARE_DEST_FOLDER}"
+		SHADER_DEST_FOLDER "shaders"
+	)
+endif()
+
+if( WIN32 )
+	DeployQt(
+		TARGET
+			${PROJECT_NAME}
+		DEPLOY_PATH
+			${CLOUDCOMPARE_DEST_FOLDER}
+	)
+else()
+	DeployQt(
+		TARGET
+			${PROJECT_NAME}
+		DEPLOY_PATH
+			${PROJECT_NAME}
+	)
+endif()
+
+# Add a 'fake' custom target to force the recompilation of ccApplication.ccp in order to
+# always get an up-to-date version number (based on the current date)
+add_custom_target(CC_UPDATE_VERSION ALL COMMAND ${CMAKE_COMMAND} -E touch_nocreate ${CMAKE_CURRENT_SOURCE_DIR}/ccApplication.cpp)

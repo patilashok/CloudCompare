@@ -1,190 +1,189 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "sfEditDlg.h"
 
-//Local
+// Local
 #include "ccHistogramWindow.h"
 
-//qCC_db
-#include <ccScalarField.h>
+// Ui
+#include <ui_sfEditDlg.h>
 
-//CCLib
+// CCCoreLib
 #include <CCConst.h>
 
-//system
-#include <assert.h>
-#include <cmath>
+// qCC_db
+#include <ccScalarField.h>
 
-//! Default number of steps for spin-boxes
+// System
+#include <cassert>
+
 const int SPIN_BOX_STEPS = 1000;
 
-sfEditDlg::sfEditDlg(QWidget* parent/*=0*/)
-	: QWidget(parent)
-	, Ui::SFEditDlg()
-	, m_associatedSF(0)
-	, m_associatedSFHisto(0)
+sfEditDlg::sfEditDlg(QWidget* parent /*=nullptr*/)
+    : QWidget(parent)
+    , m_associatedSF(nullptr)
+    , m_associatedSFHisto(nullptr)
+    , m_ui(std::make_unique<Ui::SFEditDlg>())
 {
-	setupUi(this);
+	m_ui->setupUi(this);
 
-	//histogram window
+	// histogram window
 	{
-		m_associatedSFHisto = new ccHistogramWindow();
-		QHBoxLayout* hboxLayout = new QHBoxLayout(histoFrame);
+		m_associatedSFHisto     = new ccHistogramWindow;
+		QHBoxLayout* hboxLayout = new QHBoxLayout(m_ui->histoFrame);
 		hboxLayout->addWidget(m_associatedSFHisto);
-		hboxLayout->setContentsMargins(0,0,0,0);
-		m_associatedSFHisto->enableSFInteractionMode(true);
+		hboxLayout->setContentsMargins(0, 0, 0, 0);
+		m_associatedSFHisto->setSFInteractionMode(ccHistogramWindow::SFInteractionMode::All);
 		m_associatedSFHisto->xAxis->setTickLabels(false);
-		//m_associatedSFHisto->xAxis->setAutoSubTicks(false);
-		//m_associatedSFHisto->xAxis->setSubTickCount(0);
-		m_associatedSFHisto->xAxis->setAutoTickCount(6);
+		m_associatedSFHisto->xAxis->ticker()->setTickCount(6);
 		m_associatedSFHisto->yAxis->setTickLabels(false);
-		//m_associatedSFHisto->yAxis->setAutoSubTicks(false);
-		//m_associatedSFHisto->yAxis->setSubTickCount(0);
-		m_associatedSFHisto->yAxis->setAutoTickCount(3);
+		m_associatedSFHisto->yAxis->ticker()->setTickCount(3);
 	}
 
-	connect(minValSpinBox,				SIGNAL(valueChanged(double)),			this,	SLOT(minValSBChanged(double)));
-	connect(maxValSpinBox,				SIGNAL(valueChanged(double)),			this,	SLOT(maxValSBChanged(double)));
-	connect(minSatSpinBox,				SIGNAL(valueChanged(double)),			this,	SLOT(minSatSBChanged(double)));
-	connect(maxSatSpinBox,				SIGNAL(valueChanged(double)),			this,	SLOT(maxSatSBChanged(double)));
+	connect(m_ui->minValSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &sfEditDlg::minValSBChanged);
+	connect(m_ui->maxValSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &sfEditDlg::maxValSBChanged);
+	connect(m_ui->minSatSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &sfEditDlg::minSatSBChanged);
+	connect(m_ui->maxSatSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &sfEditDlg::maxSatSBChanged);
 
-	connect(m_associatedSFHisto,		SIGNAL(sfMinDispValChanged(double)),	this,	SLOT(minValHistoChanged(double)));
-	connect(m_associatedSFHisto,		SIGNAL(sfMaxDispValChanged(double)),	this,	SLOT(maxValHistoChanged(double)));
-	connect(m_associatedSFHisto,		SIGNAL(sfMinSatValChanged(double)),		this,	SLOT(minSatHistoChanged(double)));
-	connect(m_associatedSFHisto,		SIGNAL(sfMaxSatValChanged(double)),		this,	SLOT(maxSatHistoChanged(double)));
+	connect(m_associatedSFHisto, &ccHistogramWindow::sfMinDispValChanged, this, &sfEditDlg::minValHistoChanged);
+	connect(m_associatedSFHisto, &ccHistogramWindow::sfMaxDispValChanged, this, &sfEditDlg::maxValHistoChanged);
+	connect(m_associatedSFHisto, &ccHistogramWindow::sfMinSatValChanged, this, &sfEditDlg::minSatHistoChanged);
+	connect(m_associatedSFHisto, &ccHistogramWindow::sfMaxSatValChanged, this, &sfEditDlg::maxSatHistoChanged);
 
-	//checkboxes
-	connect(nanInGreyCheckBox,			SIGNAL(toggled(bool)),					this,	SLOT(nanInGrayChanged(bool)));
-	connect(alwaysShow0CheckBox,		SIGNAL(toggled(bool)),					this,	SLOT(alwaysShow0Changed(bool)));
-	connect(symmetricalScaleCheckBox,	SIGNAL(toggled(bool)),					this,	SLOT(symmetricalScaleChanged(bool)));
-	connect(logScaleCheckBox,			SIGNAL(toggled(bool)),					this,	SLOT(logScaleChanged(bool)));
+	// checkboxes
+	connect(m_ui->nanInGreyCheckBox, &QCheckBox::toggled, this, &sfEditDlg::nanInGrayChanged);
+	connect(m_ui->alwaysShow0CheckBox, &QCheckBox::toggled, this, &sfEditDlg::alwaysShow0Changed);
+	connect(m_ui->symmetricalScaleCheckBox, &QCheckBox::toggled, this, &sfEditDlg::symmetricalScaleChanged);
+	connect(m_ui->logScaleCheckBox, &QCheckBox::toggled, this, &sfEditDlg::logScaleChanged);
 
 	show();
 }
 
-void sfEditDlg::fillDialogWith(ccScalarField* sf)
+sfEditDlg::~sfEditDlg() = default;
+
+void sfEditDlg::fillDialogWith(ccScalarField::Shared sf)
 {
 	m_associatedSF = sf;
 	if (!sf)
 	{
 		assert(false);
 		setEnabled(false);
-		histoFrame->setVisible(false);
+		m_ui->histoFrame->setVisible(false);
 		return;
 	}
 
-	//options (checkboxes)
+	// options (checkboxes)
 	{
-		bool nanValuesInGrey	= sf->areNaNValuesShownInGrey();
-		bool alwaysShowZero		= sf->isZeroAlwaysShown();
-		bool symmetricalScale	= sf->symmetricalScale();
-		bool logScale			= sf->logScale();
-		bool absoluteScale		= sf->getColorScale() && !sf->getColorScale()->isRelative();
+		bool nanValuesInGrey  = sf->areNaNValuesShownInGrey();
+		bool alwaysShowZero   = sf->isZeroAlwaysShown();
+		bool symmetricalScale = sf->symmetricalScale();
+		bool logScale         = sf->logScale();
+		bool absoluteScale    = sf->getColorScale() && !sf->getColorScale()->isRelative();
 
-		nanInGreyCheckBox->blockSignals(true);
-		nanInGreyCheckBox->setChecked(nanValuesInGrey);
-		nanInGreyCheckBox->blockSignals(false);
+		m_ui->nanInGreyCheckBox->blockSignals(true);
+		m_ui->nanInGreyCheckBox->setChecked(nanValuesInGrey);
+		m_ui->nanInGreyCheckBox->blockSignals(false);
 
-		alwaysShow0CheckBox->blockSignals(true);
-		alwaysShow0CheckBox->setChecked(alwaysShowZero);
-		alwaysShow0CheckBox->setEnabled(!logScale);
-		alwaysShow0CheckBox->blockSignals(false);
+		m_ui->alwaysShow0CheckBox->blockSignals(true);
+		m_ui->alwaysShow0CheckBox->setChecked(alwaysShowZero);
+		m_ui->alwaysShow0CheckBox->setEnabled(!logScale);
+		m_ui->alwaysShow0CheckBox->blockSignals(false);
 
-		symmetricalScaleCheckBox->blockSignals(true);
-		symmetricalScaleCheckBox->setChecked(symmetricalScale);
-		symmetricalScaleCheckBox->setEnabled(!absoluteScale && !logScale);
-		symmetricalScaleCheckBox->blockSignals(false);
+		m_ui->symmetricalScaleCheckBox->blockSignals(true);
+		m_ui->symmetricalScaleCheckBox->setChecked(symmetricalScale);
+		m_ui->symmetricalScaleCheckBox->setEnabled(!absoluteScale && !logScale);
+		m_ui->symmetricalScaleCheckBox->blockSignals(false);
 
-		logScaleCheckBox->blockSignals(true);
-		logScaleCheckBox->setChecked(logScale);
-		logScaleCheckBox->blockSignals(false);
+		m_ui->logScaleCheckBox->blockSignals(true);
+		m_ui->logScaleCheckBox->setChecked(logScale);
+		m_ui->logScaleCheckBox->blockSignals(false);
 
 		if (logScale)
-			satLabel->setText("log sat.");
+			m_ui->satLabel->setText("log sat.");
 		else if (symmetricalScale)
-			satLabel->setText("abs. sat.");
+			m_ui->satLabel->setText("abs. sat.");
 		else
-			satLabel->setText("saturation");
+			m_ui->satLabel->setText("saturation");
 	}
 
-	//displayed and saturation values
+	// displayed and saturation values
 	{
-		const ccScalarField::Range& displayRange = sf->displayRange();
+		const ccScalarField::Range& displayRange    = sf->displayRange();
 		const ccScalarField::Range& saturationRange = sf->saturationRange();
 
-		//special case: no need to actiate this widget for flat scalar field
+		// special case: no need to actiate this widget for flat scalar field
 		//(worse, divisions by zero may occur!)
 		bool flatSF = (displayRange.maxRange() == 0);
-		slidersFrame->setEnabled(!flatSF);
+		m_ui->slidersFrame->setEnabled(!flatSF);
 
-		//show histogram
-		histoFrame->setVisible(true);
+		// show histogram
+		m_ui->histoFrame->setVisible(true);
 		{
-			const ccScalarField::Histogram& histogram = m_associatedSF->getHistogram();
-			unsigned classNumber = static_cast<unsigned>(histogram.size());
+			const ccScalarField::Histogram& histogram   = m_associatedSF->getHistogram();
+			unsigned                        classNumber = static_cast<unsigned>(histogram.size());
 			if (classNumber == 0)
 				classNumber = 128;
-			m_associatedSFHisto->fromSF(m_associatedSF,classNumber,false);
+			m_associatedSFHisto->fromSF(m_associatedSF, classNumber, false);
 		}
 
 		/*** spinboxes ***/
 
-		minValSpinBox->blockSignals(true);
-		minSatSpinBox->blockSignals(true);
-		maxSatSpinBox->blockSignals(true);
-		maxValSpinBox->blockSignals(true);
+		m_ui->minValSpinBox->blockSignals(true);
+		m_ui->minSatSpinBox->blockSignals(true);
+		m_ui->maxSatSpinBox->blockSignals(true);
+		m_ui->maxValSpinBox->blockSignals(true);
 
 		if (!flatSF)
 		{
-			//Minimum displayed value
-			minValSpinBox->setRange(displayRange.min(),displayRange.stop());
-			minValSpinBox->setSingleStep(displayRange.maxRange()/SPIN_BOX_STEPS);
-			minValSpinBox->setValue(displayRange.start());
+			// Minimum displayed value
+			m_ui->minValSpinBox->setRange(displayRange.min(), displayRange.stop());
+			m_ui->minValSpinBox->setSingleStep(displayRange.maxRange() / SPIN_BOX_STEPS);
+			m_ui->minValSpinBox->setValue(displayRange.start());
 
-			//Minimum color saturation value
-			minSatSpinBox->setRange(saturationRange.min(),saturationRange.stop());
-			minSatSpinBox->setSingleStep(saturationRange.maxRange()/SPIN_BOX_STEPS);
-			minSatSpinBox->setValue(saturationRange.start());
+			// Minimum color saturation value
+			m_ui->minSatSpinBox->setRange(saturationRange.min(), saturationRange.stop());
+			m_ui->minSatSpinBox->setSingleStep(saturationRange.maxRange() / SPIN_BOX_STEPS);
+			m_ui->minSatSpinBox->setValue(saturationRange.start());
 
 			// Maximum color saturation value slider
-			maxSatSpinBox->setRange(saturationRange.start(),saturationRange.max());
-			maxSatSpinBox->setSingleStep(saturationRange.maxRange()/SPIN_BOX_STEPS);
-			maxSatSpinBox->setValue(saturationRange.stop());
+			m_ui->maxSatSpinBox->setRange(saturationRange.start(), saturationRange.max());
+			m_ui->maxSatSpinBox->setSingleStep(saturationRange.maxRange() / SPIN_BOX_STEPS);
+			m_ui->maxSatSpinBox->setValue(saturationRange.stop());
 
 			// Maximum displayed value slider
-			maxValSpinBox->setRange(displayRange.start(),displayRange.max());
-			maxValSpinBox->setSingleStep(displayRange.maxRange()/SPIN_BOX_STEPS);
-			maxValSpinBox->setValue(displayRange.stop());
+			m_ui->maxValSpinBox->setRange(displayRange.start(), displayRange.max());
+			m_ui->maxValSpinBox->setSingleStep(displayRange.maxRange() / SPIN_BOX_STEPS);
+			m_ui->maxValSpinBox->setValue(displayRange.stop());
 		}
 		else
 		{
-			//unique value
+			// unique value
 			double uniqueVal = displayRange.min();
-			minValSpinBox->setRange(uniqueVal,uniqueVal);
-			minSatSpinBox->setRange(uniqueVal,uniqueVal);
-			maxSatSpinBox->setRange(uniqueVal,uniqueVal);
-			maxValSpinBox->setRange(uniqueVal,uniqueVal);
+			m_ui->minValSpinBox->setRange(uniqueVal, uniqueVal);
+			m_ui->minSatSpinBox->setRange(uniqueVal, uniqueVal);
+			m_ui->maxSatSpinBox->setRange(uniqueVal, uniqueVal);
+			m_ui->maxValSpinBox->setRange(uniqueVal, uniqueVal);
 		}
 
-		minValSpinBox->blockSignals(false);
-		minSatSpinBox->blockSignals(false);
-		maxSatSpinBox->blockSignals(false);
-		maxValSpinBox->blockSignals(false);
+		m_ui->minValSpinBox->blockSignals(false);
+		m_ui->minSatSpinBox->blockSignals(false);
+		m_ui->maxSatSpinBox->blockSignals(false);
+		m_ui->maxValSpinBox->blockSignals(false);
 	}
 }
 
@@ -195,10 +194,9 @@ void sfEditDlg::minValSBChanged(double val)
 
 	m_associatedSFHisto->setMinDispValue(val);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
-
 }
 
 void sfEditDlg::maxValSBChanged(double val)
@@ -208,7 +206,7 @@ void sfEditDlg::maxValSBChanged(double val)
 
 	m_associatedSFHisto->setMaxDispValue(val);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -220,7 +218,7 @@ void sfEditDlg::minSatSBChanged(double val)
 
 	m_associatedSFHisto->setMinSatValue(val);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -232,7 +230,7 @@ void sfEditDlg::maxSatSBChanged(double val)
 
 	m_associatedSFHisto->setMaxSatValue(val);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -242,11 +240,11 @@ void sfEditDlg::minValHistoChanged(double val)
 	if (!m_associatedSF)
 		return;
 
-	minValSpinBox->blockSignals(true);
-	minValSpinBox->setValue(val);
-	minValSpinBox->blockSignals(false);
+	m_ui->minValSpinBox->blockSignals(true);
+	m_ui->minValSpinBox->setValue(val);
+	m_ui->minValSpinBox->blockSignals(false);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -256,11 +254,11 @@ void sfEditDlg::maxValHistoChanged(double val)
 	if (!m_associatedSF)
 		return;
 
-	maxValSpinBox->blockSignals(true);
-	maxValSpinBox->setValue(val);
-	maxValSpinBox->blockSignals(false);
+	m_ui->maxValSpinBox->blockSignals(true);
+	m_ui->maxValSpinBox->setValue(val);
+	m_ui->maxValSpinBox->blockSignals(false);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -270,11 +268,11 @@ void sfEditDlg::minSatHistoChanged(double val)
 	if (!m_associatedSF)
 		return;
 
-	minSatSpinBox->blockSignals(true);
-	minSatSpinBox->setValue(val);
-	minSatSpinBox->blockSignals(false);
+	m_ui->minSatSpinBox->blockSignals(true);
+	m_ui->minSatSpinBox->setValue(val);
+	m_ui->minSatSpinBox->blockSignals(false);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -284,11 +282,11 @@ void sfEditDlg::maxSatHistoChanged(double val)
 	if (!m_associatedSF)
 		return;
 
-	maxSatSpinBox->blockSignals(true);
-	maxSatSpinBox->setValue(val);
-	maxSatSpinBox->blockSignals(false);
+	m_ui->maxSatSpinBox->blockSignals(true);
+	m_ui->maxSatSpinBox->setValue(val);
+	m_ui->maxSatSpinBox->blockSignals(false);
 
-	emit entitySFHasChanged();
+	Q_EMIT entitySFHasChanged();
 
 	QApplication::processEvents();
 }
@@ -301,9 +299,9 @@ void sfEditDlg::nanInGrayChanged(bool state)
 	if (m_associatedSF->areNaNValuesShownInGrey() != state)
 	{
 		m_associatedSF->showNaNValuesInGrey(state);
-		emit entitySFHasChanged();
+		Q_EMIT entitySFHasChanged();
 
-		//m_associatedSFHisto->refreshBars();
+		// m_associatedSFHisto->refreshBars();
 	}
 }
 
@@ -315,9 +313,9 @@ void sfEditDlg::alwaysShow0Changed(bool state)
 	if (m_associatedSF->isZeroAlwaysShown() != state)
 	{
 		m_associatedSF->alwaysShowZero(state);
-		emit entitySFHasChanged();
+		Q_EMIT entitySFHasChanged();
 
-		//m_associatedSFHisto->refreshBars();
+		// m_associatedSFHisto->refreshBars();
 	}
 }
 
@@ -329,12 +327,12 @@ void sfEditDlg::symmetricalScaleChanged(bool state)
 	if (m_associatedSF->symmetricalScale() != state)
 	{
 		m_associatedSF->setSymmetricalScale(state);
-		fillDialogWith(m_associatedSF); //the saturation sliders may need to be updated!
-		emit entitySFHasChanged();
+		fillDialogWith(m_associatedSF); // the saturation sliders may need to be updated!
+		Q_EMIT entitySFHasChanged();
 
-		//Saturation might change!
+		// Saturation might change!
 		m_associatedSFHisto->refresh();
-		//m_associatedSFHisto->refreshBars();
+		// m_associatedSFHisto->refreshBars();
 	}
 }
 
@@ -346,12 +344,11 @@ void sfEditDlg::logScaleChanged(bool state)
 	if (m_associatedSF->logScale() != state)
 	{
 		m_associatedSF->setLogScale(state);
-		fillDialogWith(m_associatedSF); //the saturation sliders + the symmetrical scale checkbox may need to be updated!
-		emit entitySFHasChanged();
+		fillDialogWith(m_associatedSF); // the saturation sliders + the symmetrical scale checkbox may need to be updated!
+		Q_EMIT entitySFHasChanged();
 
-		//Saturation might change!
+		// Saturation might change!
 		m_associatedSFHisto->refresh();
-		//m_associatedSFHisto->refreshBars();
+		// m_associatedSFHisto->refreshBars();
 	}
 }
-

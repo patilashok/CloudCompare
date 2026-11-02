@@ -1,47 +1,55 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "matrixDisplayDlg.h"
 
-//local
-#include "../ccPersistentSettings.h"
+// Ui
+#include <ui_matrixDisplayDlg.h>
 
-//qCC_gl
-#include <ccGuiParameters.h>
+// CCCoreLib
+#include <CCMath.h>
+
+// CCPluginAPI
+#include <ccPersistentSettings.h>
 
 // qCC_db
-#include "ccFileUtils.h"
+#include <ccFileUtils.h>
 
-//Qt
+// qCC_glWindow
+#include <ccGuiParameters.h>
+
+// Qt
+#include <QClipboard>
 #include <QFileDialog>
 #include <QSettings>
-#include <QClipboard>
 
-MatrixDisplayDlg::MatrixDisplayDlg(QWidget* parent/*=0*/)
-	: QWidget(parent)
-	, Ui::MatrixDisplayDlg()
+MatrixDisplayDlg::MatrixDisplayDlg(QWidget* parent /*=nullptr*/)
+    : QWidget(parent)
+    , m_ui(std::make_unique<Ui::MatrixDisplayDlg>())
 {
-	setupUi(this);
+	m_ui->setupUi(this);
 
-	connect(exportToAsciiPushButton, &QAbstractButton::clicked, this, &MatrixDisplayDlg::exportToASCII);
-	connect(exportToClipboardPushButton, &QAbstractButton::clicked, this, &MatrixDisplayDlg::exportToClipboard);
+	connect(m_ui->exportToAsciiPushButton, &QAbstractButton::clicked, this, &MatrixDisplayDlg::exportToASCII);
+	connect(m_ui->exportToClipboardPushButton, &QAbstractButton::clicked, this, &MatrixDisplayDlg::exportToClipboard);
 
 	show();
 }
+
+MatrixDisplayDlg::~MatrixDisplayDlg() = default;
 
 void MatrixDisplayDlg::fillDialogWith(const ccGLMatrix& mat)
 {
@@ -49,16 +57,17 @@ void MatrixDisplayDlg::fillDialogWith(const ccGLMatrix& mat)
 
 	int precision = ccGui::Parameters().displayedNumPrecision;
 
-	//display as 4x4 matrix
-	maxTextEdit->setText(mat.toString(precision));
+	// display as 4x4 matrix
+	m_ui->maxTextEdit->setText(mat.toString(precision));
 
-	//display as rotation vector/angle
+	// display as rotation vector/angle
 	{
 		PointCoordinateType angle_rad;
-		CCVector3 axis3D, t3D;
+		CCVector3           axis3D;
+		CCVector3           t3D;
 		mat.getParameters(angle_rad, axis3D, t3D);
 
-		fillDialogWith(CCVector3d::fromArray(axis3D.u),angle_rad,CCVector3d::fromArray(t3D.u),precision);
+		fillDialogWith(axis3D, angle_rad, t3D, precision);
 	}
 }
 
@@ -68,47 +77,48 @@ void MatrixDisplayDlg::fillDialogWith(const ccGLMatrixd& mat)
 
 	int precision = ccGui::Parameters().displayedNumPrecision;
 
-	//display as 4x4 matrix
-	maxTextEdit->setText(mat.toString(precision));
+	// display as 4x4 matrix
+	m_ui->maxTextEdit->setText(mat.toString(precision));
 
-	//display as rotation vector/angle
+	// display as rotation vector/angle
 	{
-		double angle_rad;
-		CCVector3d axis3D, t3D;
+		double     angle_rad;
+		CCVector3d axis3D;
+		CCVector3d t3D;
 		mat.getParameters(angle_rad, axis3D, t3D);
 
-		fillDialogWith(axis3D,angle_rad,t3D,precision);
+		fillDialogWith(axis3D, angle_rad, t3D, precision);
 	}
 }
 
 void MatrixDisplayDlg::fillDialogWith(const CCVector3d& axis, double angle_rad, const CCVector3d& T, int precision)
 {
-	//center position
-	QString centerStr = QString("%0 ; %1 ; %2").arg(T.x,0,'f',precision).arg(T.y,0,'f',precision).arg(T.z,0,'f',precision);
-	//rotation axis
-	QString axisStr = QString("%0 ; %1 ; %2").arg(axis.x,0,'f',precision).arg(axis.y,0,'f',precision).arg(axis.z,0,'f',precision);
-	//rotation angle
-	QString angleStr = QString("%1 deg.").arg(angle_rad*CC_RAD_TO_DEG,0,'f',precision);
+	// center position
+	QString centerStr = QStringLiteral("%0 ; %1 ; %2").arg(T.x, 0, 'f', precision).arg(T.y, 0, 'f', precision).arg(T.z, 0, 'f', precision);
+	// rotation axis
+	QString axisStr = QStringLiteral("%0 ; %1 ; %2").arg(axis.x, 0, 'f', precision).arg(axis.y, 0, 'f', precision).arg(axis.z, 0, 'f', precision);
+	// rotation angle
+	QString angleStr = QStringLiteral("%1 deg.").arg(CCCoreLib::RadiansToDegrees(angle_rad), 0, 'f', precision);
 
-	axisLabel->setText(axisStr);
-	angleLabel->setText(angleStr);
-	centerLabel->setText(centerStr);
+	m_ui->axisLabel->setText(axisStr);
+	m_ui->angleLabel->setText(angleStr);
+	m_ui->centerLabel->setText(centerStr);
 }
 
 void MatrixDisplayDlg::clear()
 {
-	maxTextEdit->setText("Invalid transformation");
-	axisLabel->setText(QString());
-	angleLabel->setText(QString());
-	centerLabel->setText(QString());
+	m_ui->maxTextEdit->setText("Invalid transformation");
+	m_ui->axisLabel->setText(QString());
+	m_ui->angleLabel->setText(QString());
+	m_ui->centerLabel->setText(QString());
 	m_mat.toZero();
 }
 
 void MatrixDisplayDlg::exportToASCII()
 {
-	//persistent settings
+	// persistent settings
 	QSettings settings;
-	settings.beginGroup(ccPS::LoadFile()); //use the same folder as the load one
+	settings.beginGroup(ccPS::LoadFile()); // use the same folder as the load one
 	QString currentPath = settings.value(ccPS::CurrentPath(), ccFileUtils::defaultDocPath()).toString();
 
 	QString outputFilename = QFileDialog::getSaveFileName(this, "Select output file", currentPath, "*.mat.txt");
@@ -124,8 +134,8 @@ void MatrixDisplayDlg::exportToASCII()
 		ccLog::Error(QString("Failed to save matrix as '%1'").arg(outputFilename));
 	}
 
-	//save last saving location
-	settings.setValue(ccPS::CurrentPath(),QFileInfo(outputFilename).absolutePath());
+	// save last saving location
+	settings.setValue(ccPS::CurrentPath(), QFileInfo(outputFilename).absolutePath());
 	settings.endGroup();
 }
 

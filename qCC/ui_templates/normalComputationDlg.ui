@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>482</width>
-    <height>411</height>
+    <height>420</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -288,7 +288,7 @@
          <string>Use scan grid(s) (robust method)</string>
         </property>
         <property name="text">
-         <string>Use scan grid(s)  whenever possible</string>
+         <string>Use scan grid(s) whenever possible</string>
         </property>
        </widget>
       </item>
@@ -336,64 +336,74 @@
            <bool>false</bool>
           </property>
           <property name="currentIndex">
-           <number>4</number>
+           <number>0</number>
           </property>
           <property name="maxVisibleItems">
            <number>12</number>
           </property>
           <item>
            <property name="text">
-            <string>+X</string>
+            <string notr="true">+X</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>-X</string>
+            <string notr="true">-X</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>+Y</string>
+            <string notr="true">+Y</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>-Y</string>
+            <string notr="true">-Y</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>+Z</string>
+            <string notr="true">+Z</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>-Z</string>
+            <string notr="true">-Z</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>+Barycenter</string>
+            <string>From barycenter</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>- Barycenter</string>
+            <string>Towards barycenter</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>+ (0,0,0)</string>
+            <string notr="true">From origin (0,0,0)</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>- (0,0,0)</string>
+            <string notr="true">Towards origin (0,0,0)</string>
            </property>
           </item>
           <item>
            <property name="text">
             <string>Use previous normal</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>From sensor origin</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Towards sensor origin</string>
            </property>
           </item>
          </widget>
@@ -437,7 +447,7 @@
            <string>Number of neighbors used to build the tree</string>
           </property>
           <property name="prefix">
-           <string>knn = </string>
+           <string notr="true">knn = </string>
           </property>
           <property name="minimum">
            <number>1</number>

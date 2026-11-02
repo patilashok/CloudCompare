@@ -1,85 +1,96 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccRegistrationDlg.h"
 
-//Local
-#include "ccQtHelpers.h"
+// Local
 #include "mainwindow.h"
 
-//CCLib
-#include <DgmOctree.h>
+// CCCoreLib
 #include <CloudSamplingTools.h>
+#include <DgmOctree.h>
 #include <GeometricalAnalysisTools.h>
 #include <ReferenceCloud.h>
 
-//qCC_db
+// CCPluginAPI
+#include <ccQtHelpers.h>
+
+// qCC_db
 #include <ccHObject.h>
 
-//Qt
+// Qt
 #include <QThread>
 
-//system
-#include <assert.h>
+// System
+#include <cassert>
 
-static bool     s_adjustScale = false;
-static unsigned s_randomSamplingLimit = 50000;
-static double   s_rmsDifference = 1.0e-5;
-static int      s_maxIterationCount = 20;
+static bool     s_adjustScale                 = false;
+static bool     s_constrainScale              = false;
+static double   s_minScale                    = 0.5;
+static double   s_maxScale                    = 2.0;
+static unsigned s_randomSamplingLimit         = 50000;
+static double   s_rmsDifference               = 1.0e-5;
+static int      s_maxIterationCount           = 20;
 static bool     s_useErrorDifferenceCriterion = true;
-static int      s_finalOverlap = 100;
-static int      s_rotComboIndex = 0;
-static bool     s_transCheckboxes[3] = { true, true, true };
-static int		s_maxThreadCount = 0;
+static int      s_finalOverlap                = 100;
+static int      s_rotComboIndex               = 0;
+static bool     s_transCheckboxes[3]          = {true, true, true};
+static int      s_maxThreadCount              = ccQtHelpers::GetMaxThreadCount();
+static bool     s_pointsRemoval               = false;
+static bool     s_useDataSFAsWeights          = false;
+static bool     s_useModelSFAsWeights         = false;
+static bool     s_useC2MSignedDistances       = false;
+static bool     s_robustC2MSignedDistances    = true;
+static int      s_normalsMatchingOption       = CCCoreLib::ICPRegistrationTools::NO_NORMAL;
 
-
-ccRegistrationDlg::ccRegistrationDlg(ccHObject *data, ccHObject *model, QWidget* parent/*=0*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::RegistrationDialog()
+ccRegistrationDlg::ccRegistrationDlg(ccHObject* data, ccHObject* model, QWidget* parent /*=nullptr*/)
+    : QDialog(parent, Qt::Tool)
+    , Ui::RegistrationDialog()
 {
 	assert(data && model);
-	dataEntity = data;
+	dataEntity  = data;
 	modelEntity = model;
 
 	setupUi(this);
+
 	QDoubleValidator* rmsValidator = new QDoubleValidator(rmsDifferenceLineEdit);
-	rmsValidator->setRange(1.0e-7, 1.0);
+	rmsValidator->setNotation(QDoubleValidator::ScientificNotation);
+	rmsValidator->setRange(GetAbsoluteMinRMSDecrease(), 1.0, 1);
 	rmsDifferenceLineEdit->setValidator(rmsValidator);
 
-	setColorsAndLabels();
+	updateGUI();
 
 	ccQtHelpers::SetButtonColor(dataColorButton, Qt::red);
 	ccQtHelpers::SetButtonColor(modelColorButton, Qt::yellow);
 
-	int idealThreadCount = QThread::idealThreadCount();
-	maxThreadCountSpinBox->setRange(1, idealThreadCount);
-	maxThreadCountSpinBox->setSuffix(QString(" / %1").arg(idealThreadCount));
+	static const int MaxThreadCount = QThread::idealThreadCount();
+	maxThreadCountSpinBox->setRange(1, MaxThreadCount);
+	maxThreadCountSpinBox->setSuffix(QString(" / %1").arg(MaxThreadCount));
 
-	//restore semi-persistent settings
+	// restore semi-persistent settings
 	{
-		//semi-persistent options
-		if (s_maxThreadCount == 0)
-		{
-			s_maxThreadCount = idealThreadCount;
-		}
+		// semi-persistent options
 		maxThreadCountSpinBox->setValue(s_maxThreadCount);
-		adjustScaleCheckBox->setChecked(s_adjustScale);
+		adjustScaleGroupBox->setChecked(s_adjustScale);
+		scaleRangeCheckBox->setChecked(s_constrainScale);
+		minScaleDoubleSpinBox->setValue(s_minScale);
+		maxScaleDoubleSpinBox->setValue(s_maxScale);
 		randomSamplingLimitSpinBox->setValue(s_randomSamplingLimit);
-		rmsDifferenceLineEdit->setText(QString::number(s_rmsDifference, 'e', 1));
+		setMinRMSDecrease(s_rmsDifference);
 		maxIterationCount->setValue(s_maxIterationCount);
 		if (s_useErrorDifferenceCriterion)
 			errorCriterion->setChecked(true);
@@ -90,6 +101,12 @@ ccRegistrationDlg::ccRegistrationDlg(ccHObject *data, ccHObject *model, QWidget*
 		TxCheckBox->setChecked(s_transCheckboxes[0]);
 		TyCheckBox->setChecked(s_transCheckboxes[1]);
 		TzCheckBox->setChecked(s_transCheckboxes[2]);
+		pointsRemoval->setChecked(s_pointsRemoval);
+		checkBoxUseDataSFAsWeights->setChecked(s_useDataSFAsWeights);
+		checkBoxUseModelSFAsWeights->setChecked(s_useModelSFAsWeights);
+		useC2MSignedDistancesCheckBox->setChecked(s_useC2MSignedDistances);
+		robustC2MDistsCheckBox->setChecked(s_robustC2MSignedDistances);
+		normalsComboBox->setCurrentIndex(s_normalsMatchingOption);
 	}
 
 	connect(swapButton, &QAbstractButton::clicked, this, &ccRegistrationDlg::swapModelAndData);
@@ -113,25 +130,34 @@ ccRegistrationDlg::~ccRegistrationDlg()
 
 void ccRegistrationDlg::saveParameters() const
 {
-	s_maxThreadCount = getMaxThreadCount();
-	s_adjustScale = adjustScale();
-	s_randomSamplingLimit = randomSamplingLimit();
-	s_rmsDifference = getMinRMSDecrease();
-	s_maxIterationCount = getMaxIterationCount();
+	s_maxThreadCount              = getMaxThreadCount();
+	s_adjustScale                 = adjustScale();
+	s_constrainScale              = scaleRangeCheckBox->isChecked();
+	s_minScale                    = minScaleDoubleSpinBox->value();
+	s_maxScale                    = maxScaleDoubleSpinBox->value();
+	s_randomSamplingLimit         = randomSamplingLimit();
+	s_rmsDifference               = getMinRMSDecrease();
+	s_maxIterationCount           = getMaxIterationCount();
 	s_useErrorDifferenceCriterion = errorCriterion->isChecked();
-	s_finalOverlap = overlapSpinBox->value();
-	s_rotComboIndex = rotComboBox->currentIndex();
-	s_transCheckboxes[0] = TxCheckBox->isChecked();
-	s_transCheckboxes[1] = TyCheckBox->isChecked();
-	s_transCheckboxes[2] = TzCheckBox->isChecked();
+	s_finalOverlap                = overlapSpinBox->value();
+	s_rotComboIndex               = rotComboBox->currentIndex();
+	s_transCheckboxes[0]          = TxCheckBox->isChecked();
+	s_transCheckboxes[1]          = TyCheckBox->isChecked();
+	s_transCheckboxes[2]          = TzCheckBox->isChecked();
+	s_pointsRemoval               = removeFarthestPoints();
+	s_useDataSFAsWeights          = checkBoxUseDataSFAsWeights->isChecked();
+	s_useModelSFAsWeights         = checkBoxUseModelSFAsWeights->isChecked();
+	s_useC2MSignedDistances       = useC2MSignedDistancesCheckBox->isChecked();
+	s_robustC2MSignedDistances    = robustC2MDistsCheckBox->isChecked();
+	s_normalsMatchingOption       = normalsComboBox->currentIndex();
 }
 
-ccHObject *ccRegistrationDlg::getDataEntity()
+ccHObject* ccRegistrationDlg::getDataEntity()
 {
 	return dataEntity;
 }
 
-ccHObject *ccRegistrationDlg::getModelEntity()
+ccHObject* ccRegistrationDlg::getModelEntity()
 {
 	return modelEntity;
 }
@@ -146,9 +172,35 @@ bool ccRegistrationDlg::useModelSFAsWeights() const
 	return checkBoxUseModelSFAsWeights->isEnabled() && checkBoxUseModelSFAsWeights->isChecked();
 }
 
+bool ccRegistrationDlg::useC2MSignedDistances(bool& robust) const
+{
+	robust = robustC2MDistsCheckBox->isChecked();
+
+	return useC2MSignedDistancesCheckBox->isEnabled() && useC2MSignedDistancesCheckBox->isChecked();
+}
+
+CCCoreLib::ICPRegistrationTools::NORMALS_MATCHING ccRegistrationDlg::normalsMatchingOption() const
+{
+	if (normalsComboBox->isEnabled())
+	{
+		return static_cast<CCCoreLib::ICPRegistrationTools::NORMALS_MATCHING>(normalsComboBox->currentIndex());
+	}
+	return CCCoreLib::ICPRegistrationTools::NO_NORMAL;
+}
+
 bool ccRegistrationDlg::adjustScale() const
 {
-	return adjustScaleCheckBox->isChecked();
+	return adjustScaleGroupBox->isChecked();
+}
+
+std::pair<double, double> ccRegistrationDlg::constrainedScaleRange() const
+{
+	if (scaleRangeCheckBox->isChecked())
+	{
+		return {minScaleDoubleSpinBox->value(), maxScaleDoubleSpinBox->value()};
+	}
+
+	return {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()};
 }
 
 bool ccRegistrationDlg::removeFarthestPoints() const
@@ -163,12 +215,12 @@ unsigned ccRegistrationDlg::randomSamplingLimit() const
 
 unsigned ccRegistrationDlg::getMaxIterationCount() const
 {
-	return static_cast<unsigned>(std::max(1,maxIterationCount->value()));
+	return static_cast<unsigned>(std::max(1, maxIterationCount->value()));
 }
 
 unsigned ccRegistrationDlg::getFinalOverlap() const
 {
-	return static_cast<unsigned>(std::max(10,overlapSpinBox->value()));
+	return static_cast<unsigned>(std::max(10, overlapSpinBox->value()));
 }
 
 int ccRegistrationDlg::getMaxThreadCount() const
@@ -176,53 +228,77 @@ int ccRegistrationDlg::getMaxThreadCount() const
 	return maxThreadCountSpinBox->value();
 }
 
+double ccRegistrationDlg::GetAbsoluteMinRMSDecrease()
+{
+	return 1.0e-7;
+}
+
 double ccRegistrationDlg::getMinRMSDecrease() const
 {
-	bool ok = true;
+	bool   ok  = true;
 	double val = rmsDifferenceLineEdit->text().toDouble(&ok);
-	assert(ok);
+
+	if (!ok)
+	{
+		assert(false);
+		val = std::numeric_limits<double>::quiet_NaN();
+	}
 
 	return val;
+}
+
+void ccRegistrationDlg::setMinRMSDecrease(double value)
+{
+	if (std::isnan(value))
+	{
+		// last input value was invalid, restoring default
+		value = 1.0e-5;
+	}
+	rmsDifferenceLineEdit->setText(QString::number(value, 'E', 1));
 }
 
 ccRegistrationDlg::ConvergenceMethod ccRegistrationDlg::getConvergenceMethod() const
 {
 	if (errorCriterion->isChecked())
-		return CCLib::ICPRegistrationTools::MAX_ERROR_CONVERGENCE;
-	else
-		return CCLib::ICPRegistrationTools::MAX_ITER_CONVERGENCE;
+		return CCCoreLib::ICPRegistrationTools::MAX_ERROR_CONVERGENCE;
+	return CCCoreLib::ICPRegistrationTools::MAX_ITER_CONVERGENCE;
 }
 
 int ccRegistrationDlg::getTransformationFilters() const
 {
-	int filters = 0;
+	int filters = CCCoreLib::RegistrationTools::SKIP_NONE;
 	switch (rotComboBox->currentIndex())
 	{
+	case 0:
+		break;
 	case 1:
-		filters |= CCLib::RegistrationTools::SKIP_RYZ;
+		filters |= CCCoreLib::RegistrationTools::SKIP_RYZ;
 		break;
 	case 2:
-		filters |= CCLib::RegistrationTools::SKIP_RXZ;
+		filters |= CCCoreLib::RegistrationTools::SKIP_RXZ;
 		break;
 	case 3:
-		filters |= CCLib::RegistrationTools::SKIP_RXY;
+		filters |= CCCoreLib::RegistrationTools::SKIP_RXY;
+		break;
+	case 4:
+		filters |= CCCoreLib::RegistrationTools::SKIP_ROTATION;
 		break;
 	default:
-		//nothing to do
+		assert(false);
 		break;
 	}
 
 	if (!TxCheckBox->isChecked())
-		filters |= CCLib::RegistrationTools::SKIP_TX;
+		filters |= CCCoreLib::RegistrationTools::SKIP_TX;
 	if (!TyCheckBox->isChecked())
-		filters |= CCLib::RegistrationTools::SKIP_TY;
+		filters |= CCCoreLib::RegistrationTools::SKIP_TY;
 	if (!TzCheckBox->isChecked())
-		filters |= CCLib::RegistrationTools::SKIP_TZ;
+		filters |= CCCoreLib::RegistrationTools::SKIP_TZ;
 
 	return filters;
 }
 
-void ccRegistrationDlg::setColorsAndLabels()
+void ccRegistrationDlg::updateGUI()
 {
 	if (!modelEntity || !dataEntity)
 		return;
@@ -238,14 +314,19 @@ void ccRegistrationDlg::setColorsAndLabels()
 	dataEntity->prepareDisplayForRefresh_recursive();
 
 	checkBoxUseDataSFAsWeights->setEnabled(dataEntity->hasDisplayedScalarField());
-	checkBoxUseModelSFAsWeights->setEnabled(modelEntity->hasDisplayedScalarField());
+	checkBoxUseModelSFAsWeights->setEnabled(modelEntity->isKindOf(CC_TYPES::POINT_CLOUD) && modelEntity->hasDisplayedScalarField()); // only supported for clouds
+
+	bool hasRefMesh = modelEntity->isKindOf(CC_TYPES::MESH);
+	useC2MSignedDistancesCheckBox->setEnabled(hasRefMesh); // only supported if a mesh is the reference cloud
+	robustC2MDistsCheckBox->setEnabled(hasRefMesh);
+	normalsComboBox->setEnabled(dataEntity->hasNormals() && modelEntity->hasNormals()); // only supported if both the to-be-aligned and the reference entities have normals
 
 	MainWindow::RefreshAllGLWindow(false);
 }
 
 void ccRegistrationDlg::swapModelAndData()
 {
-	std::swap(dataEntity,modelEntity);
-	setColorsAndLabels();
-	checkBoxUseModelSFAsWeights->setDisabled(modelEntity->isKindOf(CC_TYPES::MESH));
+	std::swap(dataEntity, modelEntity);
+
+	updateGUI();
 }

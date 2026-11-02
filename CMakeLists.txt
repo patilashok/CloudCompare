@@ -1,14 +1,12 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required( VERSION 3.10 )
 
-cmake_policy(PUSH)
+# Oldest macOS the Mac builds run on (the conda-forge libraries they bundle are built for macOS 11).
+# It must be set before project(), otherwise the build machine's version is used.
+if( APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET )
+	set( CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version" FORCE )
+endif()
 
 project( CloudCompareProjects )
-
-include( cmake/CMakePolicies.cmake )
-include( cmake/CMakeSetCompilerOptions.cmake )
-
-# Default debug suffix for libraries.
-set( CMAKE_DEBUG_POSTFIX "d" )
 
 # One shouldn't generate the BUILD project directly in the SOURCES folder!
 if ( ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -18,94 +16,141 @@ if ( ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 endif()
 
-# Default install folders
-# (on Windows - msvc generator - the '_debug' suffix is automatically added for debug configurations)
-set( INSTALL_DESTINATIONS CloudCompare )
+# Add our cmake module path so we don't need relative paths for these
+list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/" )
 
-# RPATH Linux/Unix: (dynamic) libs are put in a subdir of prefix/lib,
-# since they are only used by qCC/ccViewer
-if( UNIX AND NOT APPLE )
-	if( NOT CMAKE_INSTALL_LIBDIR )
-		set( CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib CACHE PATH "CloudCompare lib dir" )
-	endif( NOT CMAKE_INSTALL_LIBDIR )
-	set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}/cloudcompare")
-endif()
+include( CMakePolicies )
+include( CMakeSetCompilerOptions )
+include( DeployQt )
 
 # CCViewer
-OPTION( OPTION_BUILD_CCVIEWER "Check to compile CCViewer project" ON )
+option( OPTION_BUILD_CCVIEWER "Check to compile CCViewer project" ON )
 
-# Quad buffer stereo support
-OPTION( OPTION_GL_QUAD_BUFFER_SUPPORT "Check to compile CloudCompare and ccViewer with Quad Buffer support" OFF )
+# Testing
+option( BUILD_TESTING "Build tests for CC" OFF )
+if ( BUILD_TESTING )
+	include( CTest )
+endif()
+
+# Default debug suffix for libraries.
+set( CMAKE_DEBUG_POSTFIX "d" )
+
+# Copy Qt and the other dependencies next to the applications (macdeployqt /
+# windeployqt). Package managers that provide them turn this off.
+option( OPTION_DEPLOY_QT "Bundle Qt and the other dependencies with the applications (macOS, Windows)" ON )
+# Without them, macOS uses the Linux layout: bin/, lib/cloudcompare, share/cloudcompare
+if( APPLE AND OPTION_DEPLOY_QT )
+	set( CC_MACOS_BUNDLE ON )
+else()
+	set( CC_MACOS_BUNDLE OFF )
+endif()
 
 # Define target folders
 # (now that ccViewer can have its own plugins, qCC and ccViewer must fall in separate folders!
-if(WIN32 OR APPLE) 
+if(WIN32 OR CC_MACOS_BUNDLE)
 	set( CLOUDCOMPARE_DEST_FOLDER CloudCompare )
 	set( CCVIEWER_DEST_FOLDER ccViewer )
-	if (OPTION_GL_QUAD_BUFFER_SUPPORT)
-		set ( CLOUDCOMPARE_DEST_FOLDER ${CLOUDCOMPARE_DEST_FOLDER}Stereo )
-		set ( CCVIEWER_DEST_FOLDER ${CCVIEWER_DEST_FOLDER}Stereo )
-	endif()
 else()
 	set( CLOUDCOMPARE_DEST_FOLDER bin )
 	set( CCVIEWER_DEST_FOLDER bin )
 endif()
 
-if (APPLE)
-	set( CLOUDCOMPARE_MAC_BASE_DIR ${CMAKE_INSTALL_PREFIX}/${CLOUDCOMPARE_DEST_FOLDER}/CloudCompare.app  CACHE INTERNAL "CloudCompare bundle dir")
-	set( CLOUDCOMPARE_MAC_FRAMEWORK_DIR ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/Frameworks CACHE INTERNAL "CC framework dir" )
-	set( CLOUDCOMPARE_MAC_PLUGIN_DIR ${CLOUDCOMPARE_MAC_BASE_DIR}/Contents/PlugIns/ccPlugins CACHE INTERNAL "CC plugin dir" )
-	
-	set( CCVIEWER_MAC_BASE_DIR ${CMAKE_INSTALL_PREFIX}/${CCVIEWER_DEST_FOLDER}/ccViewer.app CACHE INTERNAL "ccViewer bundle dir")
-	set( CCVIEWER_MAC_FRAMEWORK_DIR ${CCVIEWER_MAC_BASE_DIR}/Contents/Frameworks CACHE INTERNAL "CCViewer framework dir" )
-	set( CCVIEWER_MAC_PLUGIN_DIR ${CCVIEWER_MAC_BASE_DIR}/Contents/PlugIns/ccPlugins CACHE INTERNAL "CCViewer plugin dir" )
-endif()
-
-# set default install folders
 if( WIN32 )
-    # (on Windows - msvc generator - the '_debug' suffix is automatically added for debug configurations)
     set( INSTALL_DESTINATIONS ${CLOUDCOMPARE_DEST_FOLDER} )
-    
+
     if( ${OPTION_BUILD_CCVIEWER} )
         list( APPEND INSTALL_DESTINATIONS ${CCVIEWER_DEST_FOLDER} )
-    endif()
-elseif( APPLE )
-	set( INSTALL_DESTINATIONS "${CLOUDCOMPARE_MAC_FRAMEWORK_DIR}" )
-    
-    if( ${OPTION_BUILD_CCVIEWER} )
-        list( APPEND INSTALL_DESTINATIONS "${CCVIEWER_MAC_FRAMEWORK_DIR}" )
-    endif()
-elseif( UNIX )
-	set( INSTALL_DESTINATIONS ${CMAKE_INSTALL_PREFIX}/bin )
+	endif()
+elseif( UNIX AND NOT CC_MACOS_BUNDLE )
+	# RPATH Linux/Unix (and macOS without macdeployqt, e.g. for package managers):
+	# (dynamic) libs are put in $prefix/$lib/cloudcompare, since they are only used
+	# by qCC/ccViewer; Qt and the other dependencies are found where they are installed
+	include( GNUInstallDirs )
+	set( UNIX_INSTALL_SHARED_CC_LIB_DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/cloudcompare" )
+	if( APPLE )
+		# relative to the installing file (executables in bin, plugins in lib/cloudcompare/plugins,
+		# libraries in lib/cloudcompare), so that the installation can be relocated
+		list( APPEND CMAKE_INSTALL_RPATH
+			"@loader_path/../${CMAKE_INSTALL_LIBDIR}/cloudcompare"
+			"@loader_path/.."
+			"@loader_path"
+		)
+	else()
+		# keeps any CMAKE_INSTALL_RPATH set by the caller (e.g. a package manager)
+		list( APPEND CMAKE_INSTALL_RPATH ${UNIX_INSTALL_SHARED_CC_LIB_DESTINATION} )
+	endif()
+	set( INSTALL_DESTINATIONS ${CMAKE_INSTALL_PREFIX})
 endif()
 
 # Load advanced scripts
-include( cmake/CMakeInclude.cmake )
-
-add_subdirectory( CC )
+include( CMakeInclude )
+include( Install )
 
 # Add external libraries
-include( cmake/CMakeExternalLibs.cmake )
+include( CMakeExternalLibs )
 
-# Contrib. libraries (mainly for I/O)
-include( contrib/AllSupport.cmake )
+# Internal libs used by both CloudCompare & ccViewer
+add_subdirectory( libs )
 
-# Libs requested by both qCC & ccViewer
-add_subdirectory( libs/CCFbo )
-add_subdirectory( libs/qCC_db ) # must always be included after CCFbo (dependency)
-add_subdirectory( libs/qCC_io ) # must always be included after qCC_db (dependency)
-add_subdirectory( libs/qCC_glWindow ) # must always be included after qCC_db (dependency)
-add_subdirectory( libs/qcustomplot )
-
-# load plugins (potentially used by qCC and ccViewer)
+# Plugins
 add_subdirectory( plugins )
 
 # qCC
 add_subdirectory( qCC )
 
 # CCViewer
-if( ${OPTION_BUILD_CCVIEWER} )
+if( OPTION_BUILD_CCVIEWER )
 	add_subdirectory( ccViewer )
 endif()
 
-cmake_policy(POP)
+function(list_sources_recursive output_var search_dir)
+	set(options "")
+	set(oneValueArgs "")
+	set(multiValueArgs EXCLUDE_DIRS)
+
+	cmake_parse_arguments(PARSE_ARGV 2
+			"ARG"
+			"${options}"
+			"${oneValueArgs}"
+			"${multiValueArgs}"
+	)
+
+	file( GLOB_RECURSE files "${search_dir}/*.cpp" "${search_dir}/*.h")
+
+	foreach (exclude_dir ${ARG_EXCLUDE_DIRS})
+			list(FILTER files EXCLUDE REGEX ".*/${search_dir}/${exclude_dir}/.*")
+	endforeach ()
+
+	set(${output_var} ${files}  PARENT_SCOPE)
+endfunction()
+
+function(append_sources_to_file file_path)
+	list_sources_recursive(source_list ${ARGN})
+	string(REPLACE ";" "\n" source_list "${source_list}")
+	file(APPEND "${SOURCES_LIST_FILE}" "${source_list}\n")
+endfunction()
+
+# The file path where we dump the list of source files to be formatted
+set(SOURCES_LIST_FILE "${CMAKE_BINARY_DIR}/sources_to_format.txt")
+file(REMOVE "${SOURCES_LIST_FILE}")
+
+append_sources_to_file(source_list qCC EXCLUDE_DIRS extern)
+append_sources_to_file(source_list ccViewer EXCLUDE_DIRS extern)
+append_sources_to_file(source_list libs EXCLUDE_DIRS CCAppCommon/QDarkStyleSheet qCC_db/extern qCC_io/extern CCAppCommon/devices/3dConnexion/extern/hidapi)
+append_sources_to_file(source_list plugins/core/GL EXCLUDE_DIRS qSSAO/extern)
+append_sources_to_file(source_list plugins/core/IO EXCLUDE_DIRS qE57IO/extern qPhotoscanIO/extern MeshIO/extern)
+
+find_program(CLANG_FORMAT NAMES clang-format)
+
+add_custom_target(
+	format COMMAND ${CMAKE_COMMAND} -E echo "Format with: $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format>"
+	COMMAND $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format> --version
+	COMMAND $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format> -i "--files=${SOURCES_LIST_FILE}"
+)
+
+add_custom_target(
+	check-format
+	COMMAND ${CMAKE_COMMAND} -E echo "Checking format with: $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format>"
+	COMMAND $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format> --version
+	COMMAND $<IF:$<BOOL:${CLANG_FORMAT}>,${CLANG_FORMAT},clang-format> --Werror --dry-run "--files=${SOURCES_LIST_FILE}"
+)

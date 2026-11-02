@@ -1,74 +1,89 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_SAMPLE_DLG_HEADER
-#define CC_SAMPLE_DLG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-//Qt
+// CCCoreLib
+#include <CCTypes.h>
+
+// Qt
 #include <QDialog>
 
-//CCLib
-#include <GenericProgressCallback.h>
-#include <ReferenceCloud.h>
-
-//GUI
-#include <ui_subsamplingDlg.h>
+// System
+#include <array>
 
 class ccGenericPointCloud;
 
+namespace CCCoreLib
+{
+	class GenericProgressCallback;
+	class ReferenceCloud;
+} // namespace CCCoreLib
+
+namespace Ui
+{
+	class SubsamplingDialog;
+}
+
 //! Subsampling cloud dialog
-class ccSubsamplingDlg : public QDialog, public Ui::SubsamplingDialog
+class ccSubsamplingDlg : public QDialog
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Sub-sampling method
 	enum CC_SUBSAMPLING_METHOD
 	{
-		RANDOM  = 0,
-		SPACE   = 1,
-		OCTREE  = 2,
+		RANDOM         = 0,
+		RANDOM_PERCENT = 1,
+		SPATIAL        = 2,
+		OCTREE         = 3,
+		COUNT          = 4 // Should always be the last one
 	};
 
 	//! Default constructor
-	ccSubsamplingDlg(unsigned maxPointCount, double maxCloudRadius, QWidget* parent = 0);
+	ccSubsamplingDlg(unsigned maxPointCount, double maxCloudRadius, QWidget* parent = nullptr);
 
-	//! Returns subsampled version of a cloud according to current parameters
-	/** Should be called only once the dialog has been validated.
-	**/
-	CCLib::ReferenceCloud* getSampledCloud(ccGenericPointCloud* cloud, CCLib::GenericProgressCallback* progressCb = 0);
+	//! Destructor
+	~ccSubsamplingDlg() override;
+
+	//! Returns the subsampled version of a cloud according to the current parameters
+	/** Should only be called after the dialog has been validated.
+	 **/
+	CCCoreLib::ReferenceCloud* getSampledCloud(ccGenericPointCloud* cloud, CCCoreLib::GenericProgressCallback* progressCb = nullptr);
 
 	//! Enables the SF modulation option (SPATIAL method)
 	void enableSFModulation(ScalarType sfMin, ScalarType sfMax);
 
-protected slots:
+	//! Saves the current state to persistent settings
+	void saveToPersistentSettings() const;
+	//! Loads the state from persistent settings
+	void loadFromPersistentSettings();
 
+  protected:
 	void sliderMoved(int sliderPos);
-	void samplingRateChanged(double value);
+	void valueChanged(double value);
 	void changeSamplingMethod(int index);
 
-protected: //methods
-
+  protected: // methods
 	//! Updates the dialog lables depending on the active mode
 	void updateLabels();
 
-protected: //members
-
+  protected: // members
 	//! Max point count (for RANDOM method)
 	unsigned m_maxPointCount;
 
@@ -82,6 +97,9 @@ protected: //members
 	//! Scalar modulation (max SF value)
 	ScalarType m_sfMax;
 
-};
+	//! Last known sampling values (per method)
+	std::array<double, CC_SUBSAMPLING_METHOD::COUNT> m_lastUsedValues;
 
-#endif
+	//! Associated UI
+	std::unique_ptr<Ui::SubsamplingDialog> m_ui;
+};

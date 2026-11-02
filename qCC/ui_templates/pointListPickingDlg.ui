@@ -37,7 +37,7 @@
         <string>remove last</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallReset.png</normaloff>:/CC/images/smallReset.png</iconset>
        </property>
       </widget>
@@ -51,7 +51,7 @@
         <string>export to ASCII file</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/ccSave.png</normaloff>:/CC/images/ccSave.png</iconset>
        </property>
        <property name="popupMode">
@@ -74,7 +74,7 @@
         <string>to cloud</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallValidate.png</normaloff>:/CC/images/smallValidate.png</iconset>
        </property>
       </widget>
@@ -91,7 +91,7 @@
         <string>stop</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallCancel.png</normaloff>:/CC/images/smallCancel.png</iconset>
        </property>
       </widget>
@@ -131,7 +131,7 @@
         </size>
        </property>
        <property name="text">
-        <string>0</string>
+        <string notr="true">0</string>
        </property>
        <property name="maxLength">
         <number>255</number>
@@ -170,17 +170,17 @@
      </column>
      <column>
       <property name="text">
-       <string>X</string>
+       <string notr="true">X</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Y</string>
+       <string notr="true">Y</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Z</string>
+       <string notr="true">Z</string>
       </property>
      </column>
     </widget>
@@ -271,7 +271,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../icones.qrc"/>
+  <include location="../icons.qrc"/>
  </resources>
  <connections/>
 </ui>

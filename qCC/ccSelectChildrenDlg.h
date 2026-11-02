@@ -1,40 +1,42 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_SELECT_CHILDREN_DLG_HEADER
-#define CC_SELECT_CHILDREN_DLG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-#include <ui_selectChildrenDlg.h>
-
-//Qt
-#include <QDialog>
-
-//qCC_db
+// qCC_db
 #include <ccObject.h>
 
+// Qt
+#include <QDialog>
+
+namespace Ui
+{
+	class SelectChildrenDialog;
+}
+
 //! Minimal dialog to pick one element in a list (combo box)
-class ccSelectChildrenDlg : public QDialog, public Ui::SelectChildrenDialog
+class ccSelectChildrenDlg : public QDialog
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
-	explicit ccSelectChildrenDlg(QWidget* parent = 0);
+	explicit ccSelectChildrenDlg(QWidget* parent = nullptr);
+	~ccSelectChildrenDlg() override;
 
 	//! Add an element to the 'type' combo box
 	void addType(QString typeName, CC_CLASS_ENUM type);
@@ -56,11 +58,10 @@ public:
 	//! if performing name-match (regex or not)
 	bool getNameMatchIsUsed() const;
 
-protected slots:
-
+  protected:
 	//! Called when the dialog is accepted
 	void onAccept();
 
+  private:
+	std::unique_ptr<Ui::SelectChildrenDialog> m_ui;
 };
-
-#endif //CC_SELECT_CHILDREN_DLG_HEADER

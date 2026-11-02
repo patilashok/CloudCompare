@@ -1,36 +1,42 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_STATISTICAL_TEST_DLG_HEADER
-#define CC_STATISTICAL_TEST_DLG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-#include <ui_statisticalTestDlg.h>
+// Qt
+#include <QDialog>
+
+namespace Ui
+{
+	class StatisticalTestDialog;
+}
 
 //! Dialog for the Local Statistical Test tool
-class ccStatisticalTestDlg : public QDialog, public Ui::StatisticalTestDialog
+class ccStatisticalTestDlg : public QDialog
 {
-public:
-
+  public:
 	//! Default constructor (for distributions with up to 3 parameters)
-	ccStatisticalTestDlg(	QString param1Label,
-							QString param2Label,
-							QString param3Label = QString(),
-							QString windowTitle = QString(),
-							QWidget* parent = 0);
+	ccStatisticalTestDlg(QString  param1Label,
+	                     QString  param2Label,
+	                     QString  param3Label = QString(),
+	                     QString  windowTitle = QString(),
+	                     QWidget* parent      = nullptr);
+
+	~ccStatisticalTestDlg() override;
 
 	//! Returns 1st parameter value
 	double getParam1() const;
@@ -42,7 +48,8 @@ public:
 	//! Returns the number of neighbors
 	int getNeighborsNumber() const;
 	//! Returns the associated probability
-	double getProba() const;
-};
+	double getProbability() const;
 
-#endif //CC_STATISTICAL_TEST_DLG_HEADER
+  private:
+	std::unique_ptr<Ui::StatisticalTestDialog> m_ui;
+};

@@ -1,71 +1,78 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccStatisticalTestDlg.h"
 
-ccStatisticalTestDlg::ccStatisticalTestDlg(	QString p1Label,
-											QString p2Label,
-											QString p3Label/*=QString()*/,
-											QString windowTitle/*=QString()*/,
-											QWidget* parent/*=0*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::StatisticalTestDialog()
-{
-	setupUi(this);
+// Ui
+#include <ui_statisticalTestDlg.h>
 
-	param1Label->setText(p1Label);
-	param2Label->setText(p2Label);
-	if (!p3Label.isNull())
+ccStatisticalTestDlg::ccStatisticalTestDlg(QString  param1Label,
+                                           QString  param2Label,
+                                           QString  param3Label /*=QString()*/,
+                                           QString  windowTitle /*=QString()*/,
+                                           QWidget* parent /*=nullptr*/)
+    : QDialog(parent, Qt::Tool)
+    , m_ui(std::make_unique<Ui::StatisticalTestDialog>())
+{
+	m_ui->setupUi(this);
+
+	m_ui->param1Label->setText(param1Label);
+	m_ui->param2Label->setText(param2Label);
+	if (!param3Label.isNull())
 	{
-		param3Label->setText(p3Label);
+		m_ui->param3Label->setText(param3Label);
 	}
 	else
 	{
-		param3Label->setVisible(false);
-		param3SpinBox->setVisible(false);
+		m_ui->param3Label->setVisible(false);
+		m_ui->param3SpinBox->setVisible(false);
 	}
 
-	neighborsSpinBox->setValue(16);
+	m_ui->neighborsSpinBox->setValue(16);
 
 	if (!windowTitle.isNull())
+	{
 		setWindowTitle(windowTitle);
+	}
 }
+
+ccStatisticalTestDlg::~ccStatisticalTestDlg() = default;
 
 double ccStatisticalTestDlg::getParam1() const
 {
-	return param1SpinBox->value();
+	return m_ui->param1SpinBox->value();
 }
 
 double ccStatisticalTestDlg::getParam2() const
 {
-	return param2SpinBox->value();
+	return m_ui->param2SpinBox->value();
 }
 
 double ccStatisticalTestDlg::getParam3() const
 {
-	return param3SpinBox->value();
+	return m_ui->param3SpinBox->value();
 }
 
 int ccStatisticalTestDlg::getNeighborsNumber() const
 {
-	return neighborsSpinBox->value();
+	return m_ui->neighborsSpinBox->value();
 }
 
-double ccStatisticalTestDlg::getProba() const
+double ccStatisticalTestDlg::getProbability() const
 {
-	return probaSpinBox->value();
+	return m_ui->probaSpinBox->value();
 }

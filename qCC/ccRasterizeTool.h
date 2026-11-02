@@ -1,80 +1,96 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_RASTERIZE_TOOL_HEADER
-#define CC_RASTERIZE_TOOL_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-#include <ui_rasterizeDlg.h>
-
-//Local
+// Local
 #include "cc2.5DimEditor.h"
 
-//Qt
+// qCC_db
+#include <ccColorScale.h>
+
+// Qt
+#include <QDialog>
 #include <QString>
 
 class ccGenericPointCloud;
 class ccPointCloud;
 class ccPolyline;
 
+namespace Ui
+{
+	class RasterizeToolDialog;
+}
+
 //! Rasterize tool (dialog)
-class ccRasterizeTool : public QDialog, public cc2Point5DimEditor, public Ui::RasterizeToolDialog
+class ccRasterizeTool : public QDialog
+    , public cc2Point5DimEditor
 {
 	Q_OBJECT
 
-public:
+  public:
 	//! Default constructor
-	ccRasterizeTool(ccGenericPointCloud* cloud, QWidget* parent = 0);
+	ccRasterizeTool(ccGenericPointCloud* cloud, QWidget* parent = nullptr);
 
 	//! Destructor
-	~ccRasterizeTool();
+	~ccRasterizeTool() override;
 
-public: //raster export
-
+  public: // raster export
 	//! Bands to be exported
 	struct ExportBands
 	{
-		bool height = true;
-		bool rgb = false;
-		bool density = false;
+		bool height    = true;
+		bool rgb       = false;
+		bool density   = false;
 		bool visibleSF = false;
-		bool allSFs = false;
+		bool allSFs    = false;
 	};
 
 	//! Exports a raster grid as a geotiff file
-	static bool ExportGeoTiff(	QString outputFilename,
-								const ExportBands& exportBands,
-								ccRasterGrid::EmptyCellFillOption fillEmptyCellsStrategy,
-								const ccRasterGrid& grid,
-								const ccBBox& gridBBox,
-								unsigned char Z,
-								double customHeightForEmptyCells = std::numeric_limits<double>::quiet_NaN(),
-								ccGenericPointCloud* originCloud = 0,
-								int visibleSfIndex = -1);
+	static bool ExportGeoTiff(const QString&                    outputFilename,
+	                          const ExportBands&                exportBands,
+	                          ccRasterGrid::EmptyCellFillOption fillEmptyCellsStrategy,
+	                          const ccRasterGrid&               grid,
+	                          const ccBBox&                     gridBBox,
+	                          unsigned char                     Z,
+	                          double                            customHeightForEmptyCells = std::numeric_limits<double>::quiet_NaN(),
+	                          ccGenericPointCloud*              originCloud               = nullptr,
+	                          int                               visibleSfIndex            = -1);
 
-protected slots:
+	//! Exports a raster grid layer as an image (height, RGB or scalar field)
+	static bool ExportImage(const QString&                    outputFilename,
+	                        const ccRasterGrid&               grid,
+	                        bool                              exportRGB,
+	                        const ccColorScale::Shared&       colorScale,
+	                        ccRasterGrid::EmptyCellFillOption fillEmptyCellsStrategy,
+	                        double                            emptyCellsValue,
+	                        double                            minValue,
+	                        double                            maxValue,
+	                        const ccRasterGrid::SF*           gridSF = nullptr);
 
+  private:
 	//! Exports the grid as a cloud
-	ccPointCloud* generateCloud(bool autoExport = true) const;
+	ccPointCloud* generateCloud(bool autoExport = true);
 
 	//! Exports the grid as a raster
 	void generateRaster() const;
 
 	//! Exports the grid as a mesh
-	void generateMesh() const;
+	void generateMesh();
 
 	//! Exports the (already generated) contour lines
 	void exportContourLines();
@@ -84,6 +100,9 @@ protected slots:
 
 	//! Generates hillshade
 	void generateHillshade();
+
+	//! Generates an 'x-ray' scalar field
+	void generateXRaySF();
 
 	//! Removes all displayed contour lines
 	void removeContourLines();
@@ -102,6 +121,9 @@ protected slots:
 	//! Called when the projection direction changes
 	void projectionDirChanged(int);
 
+	//! Called when the Std Dev layer changes
+	void stdDevLayerChanged(int);
+
 	//! Called when the projection type changes
 	void projectionTypeChanged(int);
 
@@ -111,8 +133,8 @@ protected slots:
 	//! Called when the SF projection type changes
 	void sfProjectionTypeChanged(int);
 
-	//Inherited from cc2Point5DimEditor
-	virtual bool showGridBoxEditor() override;
+	// Inherited from cc2Point5DimEditor
+	bool showGridBoxEditor() override;
 
 	//! Called when the empty cell filling strategy changes
 	void fillEmptyCellStrategyChanged(int);
@@ -121,79 +143,111 @@ protected slots:
 	void gridOptionChanged();
 
 	//! Updates the gid info
-	void updateGridInfo();
+	void updateGridInfo(bool withNonEmptyCells = false);
 
 	//! Update the grid and the 2D display
 	void updateGridAndDisplay();
 
+	//! Update the cloud name (and non-empty cell number if required)
+	void updateCloudName(bool withNonEmptyCellNumber);
+
 	//! Exports the grid as an image
-	virtual void generateImage() const;
+	void generateImage() const;
 
 	//! Exports the grid as an ASCII matrix
-	virtual void generateASCIIMatrix() const;
+	void generateASCIIMatrix() const;
 
-protected: //standard methods
+	//! Called when a statistics export target changes
+	void onStatExportTargetChanged(bool);
 
-	//Inherited from cc2Point5DimEditor
-	virtual double getGridStep() const override;
-	virtual unsigned char getProjectionDimension() const override;
-	virtual ccRasterGrid::ProjectionType getTypeOfProjection() const override;
+	//! Show the interpolation parametrers dialog (depending on the current interpolation mode)
+	void showInterpolationParamsDialog();
 
+  private: // standard methods
+	// Inherited from cc2Point5DimEditor
+	double                       getGridStep() const override;
+	unsigned char                getProjectionDimension() const override;
+	ccRasterGrid::ProjectionType getTypeOfProjection() const override;
+
+	//! Returns the index of the std. dev. layer (field)
+	int getStdDevLayerIndex() const;
 	//! Returns user defined height for empty cells
 	double getCustomHeightForEmptyCells() const;
 
-	//! Returns strategy for empty cell filling (extended version)
-	ccRasterGrid::EmptyCellFillOption getFillEmptyCellsStrategyExt(	double& emptyCellsHeight,
-																	double& minHeight,
-																	double& maxHeight) const;
+	//! Returns user defined percentile value for SF statistics export
+	double getStatisticsPercentileValue() const;
 
-	//! Returns whether a given field count should be exported as SF (only if a cloud is generated!)
-	bool exportAsSF(ccRasterGrid::ExportableFields field) const;
+	//! Returns strategy for empty cell filling (extended version)
+	ccRasterGrid::EmptyCellFillOption getFillEmptyCellsStrategyExt(double& emptyCellsHeight,
+	                                                               double& minHeight,
+	                                                               double& maxHeight) const;
+
+	//! Returns the list of statistics that should be computed on the height values or the scalar fields
+	void getExportedStats(std::vector<ccRasterGrid::ExportableFields>& stats) const;
 
 	//! Returns whether the output cloud should use the original cloud or the grid as 'support'
 	bool resampleOriginalCloud() const;
 
-	//! Returns type of SF interpolation
-	ccRasterGrid::ProjectionType getTypeOfSFInterpolation() const;
+	//! Returns type of SF projection
+	ccRasterGrid::ProjectionType getTypeOfSFProjection() const;
 
-	//Inherited from cc2Point5DimEditor
-	virtual void gridIsUpToDate(bool state) override;
+	//! Updates the std. dev. SF combox status depending on the current state of the other options
+	void updateStdDevLayerComboBox();
+
+	// Inherited from cc2Point5DimEditor
+	void gridIsUpToDate(bool state) override;
 
 	//! Load persistent settings
 	void loadSettings();
 
 	//! Updates the grid
-	bool updateGrid(bool interpolateSF = false);
+	bool updateGrid(bool projectSFs = false);
 
 	//! Tests if the dialog can be safely closed
 	bool canClose();
 
 	//! Adds a new contour line
-	void addNewContour(ccPolyline* poly, double height, unsigned subIndex);
+	void addNewContour(ccPolyline* poly, double height);
 
-protected: //raster grid related stuff
-
+  protected: // raster grid related stuff
 	//! Converts the grid to a cloud with scalar field(s)
-	ccPointCloud* convertGridToCloud(	const std::vector<ccRasterGrid::ExportableFields>& exportedFields,
-										bool interpolateSF,
-										bool interpolateColors,
-										bool copyHillshadeSF,
-										QString activeSFName,
-										bool exportToOriginalCS) const;
+	ccPointCloud* convertGridToCloud(bool                                               exportHeightStats,
+	                                 bool                                               exportSFStats,
+	                                 const std::vector<ccRasterGrid::ExportableFields>& exportedStatistics,
+	                                 bool                                               projectSFs,
+	                                 bool                                               projectColors,
+	                                 bool                                               copyHillshadeSF,
+	                                 bool                                               copyXRaySF,
+	                                 const QString&                                     activeSFName,
+	                                 double                                             percentileValue,
+	                                 bool                                               exportToOriginalCS,
+	                                 bool                                               appendGridSizeToSFNames,
+	                                 ccProgressDialog*                                  progressDialog = nullptr) const;
 
-protected: //members
-
+  private: // members
 	//! Layer types
-	enum LayerType {	LAYER_HEIGHT = 0,
-						LAYER_RGB = 1,
-						LAYER_SF = 2
+	enum LayerType
+	{
+		LAYER_HEIGHT = 0,
+		LAYER_RGB    = 1,
+		LAYER_SF     = 2
 	};
+
+	//! Associated Qt UI
+	std::unique_ptr<Ui::RasterizeToolDialog> m_ui;
 
 	//! Associated cloud
 	ccGenericPointCloud* m_cloud;
 
+	//! Whether the cloud has scalar fields
+	bool m_cloudHasScalarFields;
+
 	//! Contour lines
 	std::vector<ccPolyline*> m_contourLines;
-};
 
-#endif //CC_RASTERIZE_TOOL_HEADER
+	//! Delunay interpolation parameters
+	ccRasterGrid::DelaunayInterpolationParams m_delaunayInterpParams;
+
+	//! Kriging parameters
+	ccRasterGrid::KrigingParams m_krigingParams;
+};

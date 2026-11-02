@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>493</width>
+    <width>600</width>
     <height>380</height>
    </rect>
   </property>
@@ -19,10 +19,11 @@
      <item>
       <widget class="QCheckBox" name="showAlignedCheckBox">
        <property name="styleSheet">
-        <string notr="true">background-color: red; color: white;</string>
+        <string notr="true">background-color: red;
+color: white;</string>
        </property>
        <property name="text">
-        <string>show 'to align' cloud</string>
+        <string>show 'to be aligned' entities</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -32,7 +33,7 @@
      <item>
       <widget class="QToolButton" name="unstackAlignToolButton">
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/ccUnstack.png</normaloff>:/CC/images/ccUnstack.png</iconset>
        </property>
       </widget>
@@ -40,7 +41,7 @@
      <item>
       <widget class="QToolButton" name="typeAlignToolButton">
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/ccPencil.png</normaloff>:/CC/images/ccPencil.png</iconset>
        </property>
       </widget>
@@ -48,7 +49,7 @@
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -64,7 +65,7 @@
         <string>Pick spheres instead of single points (for clouds only)</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallSphere.png</normaloff>:/CC/images/smallSphere.png</iconset>
        </property>
        <property name="checkable">
@@ -81,7 +82,7 @@
         <string>search radius (or the spheres radius if you know it)</string>
        </property>
        <property name="prefix">
-        <string>r = </string>
+        <string notr="true">r = </string>
        </property>
        <property name="decimals">
         <number>3</number>
@@ -106,10 +107,10 @@
         <string>Max RMS (as a percentage of the radius)</string>
        </property>
        <property name="suffix">
-        <string>%</string>
+        <string notr="true">%</string>
        </property>
        <property name="prefix">
-        <string>RMS &lt; </string>
+        <string notr="true">RMS &lt; </string>
        </property>
        <property name="minimum">
         <number>1</number>
@@ -130,53 +131,68 @@
    <item>
     <widget class="QTableWidget" name="alignedPointsTableWidget">
      <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
      <property name="showDropIndicator" stdset="0">
       <bool>false</bool>
      </property>
      <property name="selectionMode">
-      <enum>QAbstractItemView::NoSelection</enum>
+      <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
      </property>
      <attribute name="horizontalHeaderDefaultSectionSize">
-      <number>80</number>
+      <number>70</number>
      </attribute>
      <attribute name="verticalHeaderDefaultSectionSize">
-      <number>18</number>
+      <number>24</number>
      </attribute>
      <row>
       <property name="text">
-       <string>1</string>
+       <string notr="true">1</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>2</string>
+       <string notr="true">2</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>3</string>
+       <string notr="true">3</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>4</string>
+       <string notr="true">4</string>
       </property>
      </row>
      <column>
       <property name="text">
-       <string>X</string>
+       <string notr="true">X</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Y</string>
+       <string notr="true">Y</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Z</string>
+       <string notr="true">Z</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta X</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta Y</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta Z</string>
       </property>
      </column>
      <column>
@@ -196,10 +212,11 @@
      <item>
       <widget class="QCheckBox" name="showReferenceCheckBox">
        <property name="styleSheet">
-        <string notr="true">background-color: yellow;</string>
+        <string notr="true">background-color: yellow;
+color:black;</string>
        </property>
        <property name="text">
-        <string>show 'reference' cloud</string>
+        <string>show 'reference' entities</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -209,7 +226,7 @@
      <item>
       <widget class="QToolButton" name="unstackRefToolButton">
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/ccUnstack.png</normaloff>:/CC/images/ccUnstack.png</iconset>
        </property>
       </widget>
@@ -217,7 +234,7 @@
      <item>
       <widget class="QToolButton" name="typeRefToolButton">
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/ccPencil.png</normaloff>:/CC/images/ccPencil.png</iconset>
        </property>
       </widget>
@@ -225,7 +242,7 @@
      <item>
       <spacer name="horizontalSpacer_2">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -240,53 +257,68 @@
    <item>
     <widget class="QTableWidget" name="refPointsTableWidget">
      <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
      <property name="showDropIndicator" stdset="0">
       <bool>false</bool>
      </property>
      <property name="selectionMode">
-      <enum>QAbstractItemView::NoSelection</enum>
+      <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
      </property>
      <attribute name="horizontalHeaderDefaultSectionSize">
-      <number>80</number>
+      <number>70</number>
      </attribute>
      <attribute name="verticalHeaderDefaultSectionSize">
-      <number>18</number>
+      <number>24</number>
      </attribute>
      <row>
       <property name="text">
-       <string>1</string>
+       <string notr="true">1</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>2</string>
+       <string notr="true">2</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>3</string>
+       <string notr="true">3</string>
       </property>
      </row>
      <row>
       <property name="text">
-       <string>4</string>
+       <string notr="true">4</string>
       </property>
      </row>
      <column>
       <property name="text">
-       <string>X</string>
+       <string notr="true">X</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Y</string>
+       <string notr="true">Y</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Z</string>
+       <string notr="true">Z</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta X</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta Y</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Delta Z</string>
       </property>
      </column>
      <column>
@@ -313,7 +345,7 @@
      <item>
       <spacer name="horizontalSpacer_4">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -335,7 +367,7 @@
         <string>Rotation</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
      </item>
@@ -351,26 +383,31 @@
         <string>Constrains the rotation around a single axis (warning: experimental)</string>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::RightToLeft</enum>
+        <enum>Qt::LayoutDirection::RightToLeft</enum>
        </property>
        <item>
         <property name="text">
-         <string>XYZ</string>
+         <string notr="true">XYZ</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>X</string>
+         <string notr="true">X</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Y</string>
+         <string notr="true">Y</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>Z</string>
+         <string notr="true">Z</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string notr="true">NONE</string>
         </property>
        </item>
       </widget>
@@ -378,10 +415,10 @@
      <item>
       <spacer name="horizontalSpacer_5">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeType">
-        <enum>QSizePolicy::Fixed</enum>
+        <enum>QSizePolicy::Policy::Fixed</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -403,7 +440,7 @@
         <string>Constrains the translation along particular axes (warning: experimental)</string>
        </property>
        <property name="text">
-        <string>Tx</string>
+        <string notr="true">Tx</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -422,7 +459,7 @@
         <string>Constrains the translation along particular axes (warning: experimental)</string>
        </property>
        <property name="text">
-        <string>Ty</string>
+        <string notr="true">Ty</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -441,7 +478,7 @@
         <string>Constrains the translation along particular axes (warning: experimental)</string>
        </property>
        <property name="text">
-        <string>Tz</string>
+        <string notr="true">Tz</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -465,7 +502,7 @@
      <item>
       <spacer name="horizontalSpacer_3">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -516,7 +553,7 @@
         <string>to cloud</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallValidate.png</normaloff>:/CC/images/smallValidate.png</iconset>
        </property>
       </widget>
@@ -533,7 +570,7 @@
         <string>stop</string>
        </property>
        <property name="icon">
-        <iconset resource="../icones.qrc">
+        <iconset resource="../icons.qrc">
          <normaloff>:/CC/images/smallCancel.png</normaloff>:/CC/images/smallCancel.png</iconset>
        </property>
       </widget>
@@ -543,7 +580,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../icones.qrc"/>
+  <include location="../icons.qrc"/>
  </resources>
  <connections>
   <connection>

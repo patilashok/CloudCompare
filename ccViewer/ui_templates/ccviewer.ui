@@ -17,7 +17,7 @@
    <string>ccViewer</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../../qCC/icones.qrc">
+   <iconset resource="../../qCC/icons.qrc">
     <normaloff>:/CC/Icons/images/icon/cc_viewer_icon_16.png</normaloff>:/CC/Icons/images/icon/cc_viewer_icon_16.png</iconset>
   </property>
   <property name="styleSheet">
@@ -60,13 +60,12 @@ QStatusBar
        </sizepolicy>
       </property>
       <property name="styleSheet">
-       <string notr="true">QFrame{
+       <string notr="true">QFrame#GLframe
+{
 	border: 2px solid white;
 	border-radius: 10px;
 	background: qlineargradient(x1:0, y1:0, x2:0, y2:1,stop:0 rgb(10,102,151), stop:1 rgb(0,0,0));
- }
-
-</string>
+}</string>
       </property>
       <property name="frameShape">
        <enum>QFrame::Box</enum>
@@ -84,7 +83,7 @@ QStatusBar
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuOptions">
@@ -96,7 +95,7 @@ QStatusBar
       <string>Perspective</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qCC/icones.qrc">
+      <iconset resource="../../qCC/icons.qrc">
        <normaloff>:/CC/images/ccCenteredPerspective32.png</normaloff>:/CC/images/ccCenteredPerspective32.png</iconset>
      </property>
      <addaction name="actionSetOrthoView"/>
@@ -108,7 +107,7 @@ QStatusBar
       <string>Lights</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qCC/icones.qrc">
+      <iconset resource="../../qCC/icons.qrc">
        <normaloff>:/CC/images/ccSunLight.png</normaloff>:/CC/images/ccSunLight.png</iconset>
      </property>
      <addaction name="actionToggleSunLight"/>
@@ -119,7 +118,7 @@ QStatusBar
       <string>Standard views</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qCC/icones.qrc">
+      <iconset resource="../../qCC/icons.qrc">
        <normaloff>:/CC/images/ccViewYpos.png</normaloff>:/CC/images/ccViewYpos.png</iconset>
      </property>
      <addaction name="actionSetViewTop"/>
@@ -159,7 +158,7 @@ QStatusBar
       <string>Rotation symbol</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qCC/icones.qrc">
+      <iconset resource="../../qCC/icons.qrc">
        <normaloff>:/CC/images/ccPivotOn.png</normaloff>:/CC/images/ccPivotOn.png</iconset>
      </property>
      <addaction name="actionSetPivotAlwaysOn"/>
@@ -171,7 +170,7 @@ QStatusBar
       <string>3D mouse</string>
      </property>
      <property name="icon">
-      <iconset resource="../../qCC/icones.qrc">
+      <iconset resource="../../qCC/icons.qrc">
        <normaloff>:/CC/images/im3DxLogo.png</normaloff>:/CC/images/im3DxLogo.png</iconset>
      </property>
      <addaction name="actionEnable3DMouse"/>
@@ -197,7 +196,7 @@ QStatusBar
     </property>
     <addaction name="actionAbout"/>
     <addaction name="separator"/>
-    <addaction name="actionHelpShortctus"/>
+    <addaction name="actionHelpShortcuts"/>
    </widget>
    <widget class="QMenu" name="menuPlugins">
     <property name="title">
@@ -212,7 +211,7 @@ QStatusBar
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionDisplayParameters">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccLightParams.png</normaloff>:/CC/images/ccLightParams.png</iconset>
    </property>
    <property name="text">
@@ -236,7 +235,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccFullScreen.png</normaloff>:/CC/images/ccFullScreen.png</iconset>
    </property>
    <property name="text">
@@ -251,8 +250,8 @@ QStatusBar
   </action>
   <action name="actionEditCamera">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
-     <normaloff>:/CC/images/ccCamera.png</normaloff>:/CC/images/ccCamera.png</iconset>
+    <iconset resource="../../qCC/icons.qrc">
+     <normaloff>:/CC/images/photo-camera.svg</normaloff>:/CC/images/photo-camera.svg</iconset>
    </property>
    <property name="text">
     <string>Camera parameters</string>
@@ -294,9 +293,9 @@ QStatusBar
     <string>About</string>
    </property>
   </action>
-  <action name="actionHelpShortctus">
+  <action name="actionHelpShortcuts">
    <property name="text">
-    <string>Shortctus</string>
+    <string>Shortcuts</string>
    </property>
    <property name="shortcut">
     <string>F1</string>
@@ -307,7 +306,7 @@ QStatusBar
   </action>
   <action name="actionSetViewFront">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewYpos.png</normaloff>:/CC/images/ccViewYpos.png</iconset>
    </property>
    <property name="text">
@@ -322,7 +321,7 @@ QStatusBar
   </action>
   <action name="actionSetViewBack">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewYneg.png</normaloff>:/CC/images/ccViewYneg.png</iconset>
    </property>
    <property name="text">
@@ -337,7 +336,7 @@ QStatusBar
   </action>
   <action name="actionSetViewLeft">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewXpos.png</normaloff>:/CC/images/ccViewXpos.png</iconset>
    </property>
    <property name="text">
@@ -352,7 +351,7 @@ QStatusBar
   </action>
   <action name="actionSetViewRight">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewXneg.png</normaloff>:/CC/images/ccViewXneg.png</iconset>
    </property>
    <property name="text">
@@ -367,7 +366,7 @@ QStatusBar
   </action>
   <action name="actionSetViewTop">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewZpos.png</normaloff>:/CC/images/ccViewZpos.png</iconset>
    </property>
    <property name="text">
@@ -382,7 +381,7 @@ QStatusBar
   </action>
   <action name="actionSetViewBottom">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewZneg.png</normaloff>:/CC/images/ccViewZneg.png</iconset>
    </property>
    <property name="text">
@@ -455,7 +454,7 @@ QStatusBar
   </action>
   <action name="actionDelete">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccDelete.png</normaloff>:/CC/images/ccDelete.png</iconset>
    </property>
    <property name="text">
@@ -473,7 +472,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccOrthoMode32.png</normaloff>:/CC/images/ccOrthoMode32.png</iconset>
    </property>
    <property name="text">
@@ -494,7 +493,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccCenteredPerspective32.png</normaloff>:/CC/images/ccCenteredPerspective32.png</iconset>
    </property>
    <property name="text">
@@ -515,7 +514,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewerBasedPerspective32.png</normaloff>:/CC/images/ccViewerBasedPerspective32.png</iconset>
    </property>
    <property name="text">
@@ -536,7 +535,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccPivotOn.png</normaloff>:/CC/images/ccPivotOn.png</iconset>
    </property>
    <property name="text">
@@ -554,7 +553,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccPivotAuto.png</normaloff>:/CC/images/ccPivotAuto.png</iconset>
    </property>
    <property name="text">
@@ -572,7 +571,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccPivotOff.png</normaloff>:/CC/images/ccPivotOff.png</iconset>
    </property>
    <property name="text">
@@ -587,7 +586,7 @@ QStatusBar
   </action>
   <action name="actionSetViewIso1">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewIso1.png</normaloff>:/CC/images/ccViewIso1.png</iconset>
    </property>
    <property name="text">
@@ -608,7 +607,7 @@ QStatusBar
   </action>
   <action name="actionSetViewIso2">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccViewIso2.png</normaloff>:/CC/images/ccViewIso2.png</iconset>
    </property>
    <property name="text">
@@ -645,7 +644,7 @@ QStatusBar
   </action>
   <action name="actionGlobalZoom">
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccGlobalZoom.png</normaloff>:/CC/images/ccGlobalZoom.png</iconset>
    </property>
    <property name="text">
@@ -664,6 +663,10 @@ QStatusBar
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="icon">
+    <iconset resource="../../qCC/icons.qrc">
+     <normaloff>:/CC/images/lockedAxis.png</normaloff>:/CC/images/lockedAxis.png</iconset>
+   </property>
    <property name="text">
     <string>Lock rotation around vert. axis</string>
    </property>
@@ -679,7 +682,7 @@ QStatusBar
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../qCC/icones.qrc">
+    <iconset resource="../../qCC/icons.qrc">
      <normaloff>:/CC/images/ccStereo.png</normaloff>:/CC/images/ccStereo.png</iconset>
    </property>
    <property name="text">
@@ -709,7 +712,7 @@ QStatusBar
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources>
-  <include location="../../qCC/icones.qrc"/>
+  <include location="../../qCC/icons.qrc"/>
  </resources>
  <connections/>
 </ui>

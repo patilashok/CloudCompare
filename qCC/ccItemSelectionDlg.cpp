@@ -1,36 +1,36 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccItemSelectionDlg.h"
 
-//Qt
+// Qt
 #include <QDialog>
 #include <QListWidgetItem>
 
-ccItemSelectionDlg::ccItemSelectionDlg(	bool multiSelectionEnabled,
-										QWidget* parent/*=0*/,
-										QString itemName/*="entities"*/,
-										QString labelStr/*=QString()*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::ItemSelectionDlg()
+ccItemSelectionDlg::ccItemSelectionDlg(bool     multiSelectionEnabled,
+                                       QWidget* parent /*=nullptr*/,
+                                       QString  itemName /*="entities"*/,
+                                       QString  labelStr /*=QString()*/)
+    : QDialog(parent, Qt::Tool)
+    , Ui::ItemSelectionDlg()
 {
 	setupUi(this);
 
-	//multi-selection mode
+	// multi-selection mode
 	if (multiSelectionEnabled)
 	{
 		label->setText(tr("Please select one or several %1:\n(press CTRL+A to select all)").arg(itemName));
@@ -51,27 +51,27 @@ void ccItemSelectionDlg::setItems(const QStringList& items, int defaultSelectedI
 {
 	for (int i = 0; i < items.size(); ++i)
 	{
-		//add one line per entity in the combo-box
-		listWidget->insertItem(static_cast<int>(i), new QListWidgetItem(items[i]));
+		// add one line per entity in the combo-box
+		listWidget->insertItem(i, new QListWidgetItem(items[i]));
 	}
 
-	//default selection
+	// default selection
 	if (defaultSelectedIndex >= 0 && defaultSelectedIndex < items.size())
 	{
-		listWidget->setItemSelected(listWidget->item(defaultSelectedIndex), true);
+		listWidget->item(defaultSelectedIndex)->setSelected(true);
 	}
 }
 
 int ccItemSelectionDlg::getSelectedIndex() const
 {
-	//get selected items
+	// get selected items
 	QList<QListWidgetItem*> list = listWidget->selectedItems();
 	return list.empty() ? -1 : listWidget->row(list.front());
 }
 
 void ccItemSelectionDlg::getSelectedIndexes(std::vector<int>& indexes) const
 {
-	//get selected items
+	// get selected items
 	QList<QListWidgetItem*> list = listWidget->selectedItems();
 
 	try
@@ -80,34 +80,34 @@ void ccItemSelectionDlg::getSelectedIndexes(std::vector<int>& indexes) const
 	}
 	catch (const std::bad_alloc&)
 	{
-		//not enough memory?!
+		// not enough memory?!
 		return;
 	}
-	
+
 	for (int i = 0; i < list.size(); ++i)
 	{
-		indexes[i]  = listWidget->row(list[i]);
+		indexes[i] = listWidget->row(list[i]);
 	}
 }
 
 int ccItemSelectionDlg::SelectEntity(const ccHObject::Container& entities,
-									int selectedIndex/*=0*/,
-									QWidget* parent/*=0*/,
-									QString label/*=QString()*/)
+                                     int                         selectedIndex /*=0*/,
+                                     QWidget*                    parent /*=nullptr*/,
+                                     QString                     label /*=QString()*/)
 {
 	ccItemSelectionDlg epDlg(false, parent, tr("entity"), label);
 
 	QStringList items;
-	for (size_t i = 0; i < entities.size(); ++i)
+	for (auto* entity : entities)
 	{
-		//add one line per entity
-		items << QString("%1 (ID=%2)").arg(entities[i]->getName()).arg(entities[i]->getUniqueID());
+		// add one line per entity
+		items << QString("%1 (ID=%2)").arg(entity->getName()).arg(entity->getUniqueID());
 	}
 	epDlg.setItems(items, selectedIndex);
 
 	if (!epDlg.exec())
 	{
-		//cancelled by the user
+		// cancelled by the user
 		return -1;
 	}
 
@@ -115,19 +115,19 @@ int ccItemSelectionDlg::SelectEntity(const ccHObject::Container& entities,
 }
 
 bool ccItemSelectionDlg::SelectEntities(const ccHObject::Container& entities,
-									  std::vector<int>& selectedIndexes,
-									  QWidget* parent/*=0*/,
-									  QString label/*=QString()*/)
+                                        std::vector<int>&           selectedIndexes,
+                                        QWidget*                    parent /*=nullptr*/,
+                                        QString                     label /*=QString()*/)
 {
 	selectedIndexes.clear();
 
 	ccItemSelectionDlg epDlg(true, parent, tr("entities"), label);
 
 	QStringList items;
-	for (size_t i = 0; i < entities.size(); ++i)
+	for (auto* entity : entities)
 	{
-		//add one line per entity
-		items << QString("%1 (ID=%2)").arg(entities[i]->getName()).arg(entities[i]->getUniqueID());
+		// add one line per entity
+		items << QString("%1 (ID=%2)").arg(entity->getName()).arg(entity->getUniqueID());
 	}
 	epDlg.setItems(items, -1);
 

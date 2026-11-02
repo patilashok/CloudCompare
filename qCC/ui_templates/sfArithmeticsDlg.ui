@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>300</width>
-    <height>180</height>
+    <height>218</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -82,6 +82,16 @@
        </item>
        <item>
         <property name="text">
+         <string>min</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>max</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>square root</string>
         </property>
        </item>
@@ -97,47 +107,47 @@
        </item>
        <item>
         <property name="text">
-         <string>exp</string>
+         <string notr="true">exp</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>log</string>
+         <string notr="true">log</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>log10</string>
+         <string notr="true">log10</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>cos</string>
+         <string notr="true">cos</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>sin</string>
+         <string notr="true">sin</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>tan</string>
+         <string notr="true">tan</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>acos</string>
+         <string notr="true">acos</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>asin</string>
+         <string notr="true">asin</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>atan</string>
+         <string notr="true">atan</string>
         </property>
        </item>
        <item>
@@ -148,6 +158,16 @@
        <item>
         <property name="text">
          <string>inverse (1/x)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>set</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>abs</string>
         </property>
        </item>
       </widget>
@@ -184,10 +204,10 @@
         <number>6</number>
        </property>
        <property name="minimum">
-        <double>-1000000.000000000000000</double>
+        <double>-100000000.000000000000000</double>
        </property>
        <property name="maximum">
-        <double>1000000.000000000000000</double>
+        <double>100000000.000000000000000</double>
        </property>
        <property name="value">
         <double>1.000000000000000</double>

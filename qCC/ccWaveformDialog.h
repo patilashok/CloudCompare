@@ -1,38 +1,44 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#                       COPYRIGHT: CNRS / OSUR                           #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_WAVEFORM_DIALOG_HEADER
-#define CC_WAVEFORM_DIALOG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #                       COPYRIGHT: CNRS / OSUR                           #
+// #                                                                        #
+// ##########################################################################
 
-//Local
-#include "ccPickingListener.h"
+// Local
+#include "ccQCustomPlot.h"
 
-//Qt
+// CCPluginAPI
+#include <ccPickingListener.h>
+
+// qCC_db
+#include <cc2DLabel.h>
+
+// Qt
 #include <QDialog>
-#include <QFont>
 
-//QCustomPlot
-#include <qcustomplot.h>
-
-class QCPBarsWithText;
-class QCPHiddenArea;
-class QCPGraph;
 class QCPArrow;
-class Ui_WaveDialog;
+class QCPBarsWithText;
+class QCPColoredBars;
+class QCPHiddenArea;
+class QCPTextElement;
+
+namespace Ui
+{
+	class WaveDialog;
+} // namespace Ui
 class ccPointCloud;
 class ccPickingHub;
 
@@ -41,13 +47,12 @@ class ccWaveWidget : public QCustomPlot
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
-	explicit ccWaveWidget(QWidget *parent = 0);
+	explicit ccWaveWidget(QWidget* parent = nullptr);
 
 	//! Destructor
-	virtual ~ccWaveWidget();
+	~ccWaveWidget() override;
 
 	//! Sets title
 	void setTitle(const QString& str);
@@ -62,74 +67,71 @@ public:
 	//! Updates the display
 	void refresh();
 
-protected: //methods
+  protected: // methods
+	// mouse events handling
+	void mousePressEvent(QMouseEvent* event) override;
+	void mouseMoveEvent(QMouseEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
 
-	//mouse events handling
-	void mousePressEvent(QMouseEvent *event);
-	void mouseMoveEvent(QMouseEvent *event);
-	//void wheelEvent(QWheelEvent* event);
-	void resizeEvent(QResizeEvent * event);
-	
 	//! Clears internal structures
 	void clearInternal();
 
 	//! Updates overlay curve width depending on the widget display size
 	void updateCurveWidth(int w, int h);
 
-protected: //attributes
-
-	//Title
-	QString m_titleStr;
-	QCPPlotTitle* m_titlePlot;
+  protected: // attributes
+	// Title
+	QString         m_titleStr;
+	QCPTextElement* m_titlePlot;
 
 	//! Wave curve
-	QCPGraph* m_curve;
+	QCPGraph*           m_curve;
 	std::vector<double> m_curveValues;
-	double m_dt;
-	double m_minA, m_maxA;
-	double m_echoPos;
+	double              m_dt;
+	double              m_minA, m_maxA;
+	double              m_echoPos;
 
-	//vertical indicator
+	// vertical indicator
 	QCPBarsWithText* m_vertBar;
-	bool m_drawVerticalIndicator;
-	double m_verticalIndicatorPositionPercent;
+	bool             m_drawVerticalIndicator;
+	double           m_verticalIndicatorPositionPercent;
 
-	//Peak marker
+	// Peak marker
 	QCPBarsWithText* m_peakBar;
 
 	//! Rendering font
 	QFont m_renderingFont;
-
-	//! Last mouse click
-	QPoint m_lastMouseClick;
 };
 
 //! Waveform dialog
-class ccWaveDialog : public QDialog, public ccPickingListener
+class ccWaveDialog : public QDialog
+    , public ccPickingListener
 {
 	Q_OBJECT
 
-public:
+  public:
 	//! Default constructor
-	explicit ccWaveDialog(ccPointCloud* cloud, ccPickingHub* pickingHub, QWidget* parent = 0);
+	explicit ccWaveDialog(ccPointCloud* cloud, ccPickingHub* pickingHub, QWidget* parent = nullptr);
 	//! Destructor
-	virtual ~ccWaveDialog();
+	~ccWaveDialog() override;
 
 	//! Returns the encapsulated widget
-	inline ccWaveWidget* waveWidget() { return m_widget; }
+	inline ccWaveWidget* waveWidget()
+	{
+		return m_widget;
+	}
 
-	//inherited from ccPickingListener
-	virtual void onItemPicked(const PickedItem& pi);
+	// inherited from ccPickingListener
+	void onItemPicked(const PickedItem& pi) override;
 
-protected slots:
-
+  protected:
 	void onPointIndexChanged(int);
+	void add2DLabel(ccPointCloud* cloud, unsigned int pointIndex);
 	void updateCurrentWaveform();
 	void onPointPickingButtonToggled(bool);
 	void onExportWaveAsCSV();
 
-protected: //members
-
+  protected: // members
 	//! Associated point cloud
 	ccPointCloud* m_cloud;
 
@@ -140,11 +142,14 @@ protected: //members
 	ccPickingHub* m_pickingHub;
 
 	//! GUI
-	Ui_WaveDialog* m_gui;
+	std::unique_ptr<Ui::WaveDialog> m_ui;
 
 	//! Maximum wave amplitude (for all points)
 	double m_waveMax;
 
-};
+	//! A 2D label used to visualize the point whose waveform is displayed
+	std::shared_ptr<cc2DLabel> m_label;
 
-#endif //CC_WAVEFORM_DIALOG_HEADER
+	//! The display associated with the cloud whose waveforms are displayed
+	ccGenericGLDisplay* m_display;
+};

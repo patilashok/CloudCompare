@@ -1,35 +1,39 @@
-//##########################################################################
-//#                                                                        #
-//#                               CCFBO                                    #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU Library General Public License as       #
-//#  published by the Free Software Foundation; version 2 or later of the License.  #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                               CCFBO                                    #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU Library General Public License as       #
+// #  published by the Free Software Foundation; version 2 or later of the License.  #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-#include "ccFrameBufferObject.h"
+#include "../include/ccFrameBufferObject.h"
 
-//system
-#include <assert.h>
+// Qt
+#include <QDebug>
+
+// System
+#include <cassert>
 
 ccFrameBufferObject::ccFrameBufferObject()
-	: m_isValid(false)
-	, m_width(0)
-	, m_height(0)
-	, m_depthTexture(0)
-	, m_ownDepthTexture(false)
-	, m_colorTexture(0)
-	, m_ownColorTexture(false)
-	, m_fboId(0)
-{}
+    : m_isValid(false)
+    , m_width(0)
+    , m_height(0)
+    , m_depthTexture(0)
+    , m_ownDepthTexture(false)
+    , m_colorTexture(0)
+    , m_ownColorTexture(false)
+    , m_fboId(0)
+{
+}
 
 ccFrameBufferObject::~ccFrameBufferObject()
 {
@@ -42,7 +46,7 @@ void ccFrameBufferObject::reset()
 	{
 		return;
 	}
-	
+
 	deleteDepthTexture();
 	deleteColorTexture();
 
@@ -64,18 +68,24 @@ bool ccFrameBufferObject::init(unsigned w, unsigned h)
 			return false;
 		}
 
-		if (!m_glExtFunc.initializeOpenGLFunctions())
+		const auto* context = QOpenGLContext::currentContext();
+		// We test if FBOs are supported.
+		// It's unlikely that the context is null since previous GL functions initialization
+		// does not fail but we check it anyway
+		if (!context || !context->hasExtension(QByteArrayLiteral("GL_ARB_framebuffer_object")))
 		{
 			return false;
 		}
+		// unlike other versioned GL functions, this init return void
+		m_glExtFunc.initializeOpenGLFunctions();
 	}
 	else
 	{
-		//to support reinit
+		// to support reinit
 		reset();
 	}
 
-	m_width = w;
+	m_width  = w;
 	m_height = h;
 
 	// create a framebuffer object
@@ -93,10 +103,7 @@ bool ccFrameBufferObject::start()
 		m_glExtFunc.glBindFramebuffer(GL_FRAMEBUFFER_EXT, m_fboId);
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+	return false;
 }
 
 void ccFrameBufferObject::stop()
@@ -113,7 +120,7 @@ void ccFrameBufferObject::deleteColorTexture()
 	{
 		m_glFunc.glDeleteTextures(1, &m_colorTexture);
 	}
-	m_colorTexture = 0;
+	m_colorTexture    = 0;
 	m_ownColorTexture = false;
 }
 
@@ -123,15 +130,15 @@ void ccFrameBufferObject::deleteDepthTexture()
 	{
 		m_glFunc.glDeleteTextures(1, &m_depthTexture);
 	}
-	m_depthTexture = 0;
+	m_depthTexture    = 0;
 	m_ownDepthTexture = false;
 }
 
-bool ccFrameBufferObject::initColor(GLint internalformat/*=GL_RGBA*/,
-									GLenum format/*=GL_RGBA*/,
-									GLenum type/*=GL_UNSIGNED_BYTE*/,
-									GLint minMagFilter/*=GL_NEAREST*/,
-									GLenum target/*=GL_TEXTURE_2D*/)
+bool ccFrameBufferObject::initColor(GLint  internalformat /*=GL_RGBA*/,
+                                    GLenum format /*=GL_RGBA*/,
+                                    GLenum type /*=GL_UNSIGNED_BYTE*/,
+                                    GLint  minMagFilter /*=GL_NEAREST*/,
+                                    GLenum target /*=GL_TEXTURE_2D*/)
 {
 	if (!m_isValid || m_fboId == 0)
 	{
@@ -139,7 +146,7 @@ bool ccFrameBufferObject::initColor(GLint internalformat/*=GL_RGBA*/,
 		return false;
 	}
 
-	//create the new texture
+	// create the new texture
 	m_glFunc.glPushAttrib(GL_ENABLE_BIT);
 	m_glFunc.glEnable(GL_TEXTURE_2D);
 
@@ -150,7 +157,7 @@ bool ccFrameBufferObject::initColor(GLint internalformat/*=GL_RGBA*/,
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_MIN_FILTER, minMagFilter);
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	m_glFunc.glTexImage2D(target, 0, internalformat, m_width, m_height, 0, format, type, 0);
+	m_glFunc.glTexImage2D(target, 0, internalformat, m_width, m_height, 0, format, type, nullptr);
 	m_glFunc.glBindTexture(target, 0);
 
 	m_glFunc.glPopAttrib();
@@ -159,16 +166,13 @@ bool ccFrameBufferObject::initColor(GLint internalformat/*=GL_RGBA*/,
 	{
 		return true;
 	}
-	else
-	{
-		m_glFunc.glDeleteTextures(1, &texID);
-		return false;
-	}
+	m_glFunc.glDeleteTextures(1, &texID);
+	return false;
 }
 
-bool ccFrameBufferObject::attachColor(	GLuint texID,
-										bool ownTexture/*=false*/,
-										GLenum target/*=GL_TEXTURE_2D*/)
+bool ccFrameBufferObject::attachColor(GLuint texID,
+                                      bool   ownTexture /*=false*/,
+                                      GLenum target /*=GL_TEXTURE_2D*/)
 {
 	if (!m_isValid || m_fboId == 0)
 	{
@@ -178,9 +182,9 @@ bool ccFrameBufferObject::attachColor(	GLuint texID,
 
 	if (!m_glFunc.glIsTexture(texID))
 	{
-		//error or simple warning?
+		// error or simple warning?
 		assert(false);
-		//return false;
+		// return false;
 	}
 
 	if (!start())
@@ -197,13 +201,13 @@ bool ccFrameBufferObject::attachColor(	GLuint texID,
 	switch (status)
 	{
 	case GL_FRAMEBUFFER_COMPLETE_EXT:
-		//remove the previous texture (if any)
+		// remove the previous texture (if any)
 		deleteColorTexture();
-		//save the new one
-		m_colorTexture = texID;
+		// save the new one
+		m_colorTexture    = texID;
 		m_ownColorTexture = ownTexture;
 		break;
-	
+
 	default:
 		qDebug("[%s line %d] OpenGL Error: %d", __FILE__, __LINE__, status);
 		success = false;
@@ -213,10 +217,10 @@ bool ccFrameBufferObject::attachColor(	GLuint texID,
 	return success;
 }
 
-bool ccFrameBufferObject::initDepth(GLint wrapParam/*=GL_CLAMP_TO_BORDER*/,
-									GLenum internalFormat/*=GL_DEPTH_COMPONENT32*/,
-									GLint minMagFilter/*=GL_NEAREST*/,
-									GLenum target/*=GL_TEXTURE_2D*/)
+bool ccFrameBufferObject::initDepth(GLint  wrapParam /*=GL_CLAMP_TO_BORDER*/,
+                                    GLenum internalFormat /*=GL_DEPTH_COMPONENT32*/,
+                                    GLint  minMagFilter /*=GL_NEAREST*/,
+                                    GLenum target /*=GL_TEXTURE_2D*/)
 {
 	if (!m_isValid || m_fboId == 0)
 	{
@@ -229,7 +233,7 @@ bool ccFrameBufferObject::initDepth(GLint wrapParam/*=GL_CLAMP_TO_BORDER*/,
 		return false;
 	}
 
-	//create the depth texture
+	// create the depth texture
 	m_glFunc.glPushAttrib(GL_ENABLE_BIT);
 	m_glFunc.glEnable(GL_TEXTURE_2D);
 
@@ -242,8 +246,8 @@ bool ccFrameBufferObject::initDepth(GLint wrapParam/*=GL_CLAMP_TO_BORDER*/,
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_MIN_FILTER, minMagFilter);
 	m_glFunc.glTexParameteri(target, GL_TEXTURE_MAG_FILTER, minMagFilter);
-	m_glFunc.glTexImage2D   (target, 0, internalFormat, m_width, m_height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
-	m_glFunc.glBindTexture  (target, 0);
+	m_glFunc.glTexImage2D(target, 0, internalFormat, m_width, m_height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
+	m_glFunc.glBindTexture(target, 0);
 
 	m_glFunc.glPopAttrib();
 
@@ -251,16 +255,13 @@ bool ccFrameBufferObject::initDepth(GLint wrapParam/*=GL_CLAMP_TO_BORDER*/,
 	{
 		return true;
 	}
-	else
-	{
-		m_glFunc.glDeleteTextures(1, &texID);
-		return false;
-	}
+	m_glFunc.glDeleteTextures(1, &texID);
+	return false;
 }
 
-bool ccFrameBufferObject::attachDepth(	GLuint texID,
-										bool ownTexture/*=false*/,
-										GLenum target/*=GL_TEXTURE_2D*/)
+bool ccFrameBufferObject::attachDepth(GLuint texID,
+                                      bool   ownTexture /*=false*/,
+                                      GLenum target /*=GL_TEXTURE_2D*/)
 {
 	if (!m_isValid || m_fboId == 0)
 	{
@@ -270,9 +271,9 @@ bool ccFrameBufferObject::attachDepth(	GLuint texID,
 
 	if (!m_glFunc.glIsTexture(texID))
 	{
-		//error or simple warning?
+		// error or simple warning?
 		assert(false);
-		//return false;
+		// return false;
 	}
 
 	if (!start())
@@ -289,13 +290,13 @@ bool ccFrameBufferObject::attachDepth(	GLuint texID,
 	switch (status)
 	{
 	case GL_FRAMEBUFFER_COMPLETE_EXT:
-		//remove the previous texture (if any)
+		// remove the previous texture (if any)
 		deleteDepthTexture();
-		//save the new one
-		m_depthTexture = texID;
+		// save the new one
+		m_depthTexture    = texID;
 		m_ownDepthTexture = ownTexture;
 		break;
-	
+
 	default:
 		qDebug("[%s line %d] OpenGL Error: %d", __FILE__, __LINE__, status);
 		success = false;

@@ -1,110 +1,142 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_GRAPHICAL_SEGMENTATION_TOOLS_HEADER
-#define CC_GRAPHICAL_SEGMENTATION_TOOLS_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-//Local
+// Ui
+#include <ui_graphicalSegmentationDlg.h>
+
+// CCPluginAPI
 #include <ccOverlayDialog.h>
 
-//qCC_db
+// qCC_db
 #include <ccHObject.h>
 
-//Qt
+// Qt
 #include <QSet>
 
-//GUI
-#include <ui_graphicalSegmentationDlg.h>
+// System
+#include <set>
 
 class ccPolyline;
 class ccPointCloud;
-class ccGLWindow;
+class ccGLWindowInterface;
+class ccMainAppInterface;
 
 //! Graphical segmentation mechanism (with polyline)
-class ccGraphicalSegmentationTool : public ccOverlayDialog, public Ui::GraphicalSegmentationDlg
+class ccGraphicalSegmentationTool : public ccOverlayDialog
+    , public Ui::GraphicalSegmentationDlg
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
 	explicit ccGraphicalSegmentationTool(QWidget* parent);
 	//! Destructor
-	virtual ~ccGraphicalSegmentationTool();
+	~ccGraphicalSegmentationTool() override;
 
 	//! Adds an entity (and/or its children) to the 'to be segmented' pool
 	/** Warning: some entities may be rejected if they are
-		locked, or can't be segmented this way.
-		\return whether entity has been added to the pool or not
+	    locked, or can't be segmented this way.
+	    \return whether entity has been added to the pool or not
 	**/
-	bool addEntity(ccHObject* anObject);
-	
+	bool addEntity(ccHObject* entity, bool silent = false);
+
 	//! Returns the number of entites currently in the the 'to be segmented' pool
 	unsigned getNumberOfValidEntities() const;
 
 	//! Get a pointer to the polyline that has been segmented
-	ccPolyline *getPolyLine() {return m_segmentationPoly;}
+	const ccPolyline* getPolyLine() const
+	{
+		return m_segmentationPoly;
+	}
 
 	//! Returns the active 'to be segmented' set
-	QSet<ccHObject*>& entities() { return m_toSegment; }
+	QSet<ccHObject*>& entities()
+	{
+		return m_toSegment;
+	}
 	//! Returns the active 'to be segmented' set (const version)
-	const QSet<ccHObject*>& entities() const { return m_toSegment; }
+	const QSet<ccHObject*>& entities() const
+	{
+		return m_toSegment;
+	}
 
-	//inherited from ccOverlayDialog
-	virtual bool linkWith(ccGLWindow* win);
-	virtual bool start();
-	virtual void stop(bool accepted);
+	// inherited from ccOverlayDialog
+	bool linkWith(ccGLWindowInterface* win) override;
+	bool start() override;
+	void stop(bool accepted) override;
 
 	//! Returns whether hidden parts should be delete after segmentation
-	bool deleteHiddenParts() const { return m_deleteHiddenParts; }
+	bool deleteHiddenParts() const
+	{
+		return m_deleteHiddenParts;
+	}
 
 	//! Remove entities from the 'to be segmented' pool
 	/** \warning 'unallocateVisibilityArray' will be called on all point clouds
-		prior to be removed from the pool.
+	    prior to be removed from the pool.
 	**/
-	void removeAllEntities(bool unallocateVisibilityArrays);
+	void removeAllEntities();
 
-protected slots:
+	//! Apply segmentation and update the database (helper)
+	bool applySegmentation(ccMainAppInterface* app, ccHObject::Container& newEntities);
 
-	void segmentIn();
-	void segmentOut();
-	void segment(bool);
-	void reset();
-	void apply();
-	void applyAndDelete();
-	void cancel();
-	void addPointToPolyline(int x, int y);
-	void closePolyLine(int x=0, int y=0); //arguments for compatibility with ccGlWindow::rightButtonClicked signal
+  signals:
+	void currentScalarFieldUpdated();
+
+  protected:
+	void        segmentIn();
+	void        segmentOut();
+	void        exportSelection();
+	void        segment(bool keepPointsInside, ScalarType classificationValue = CCCoreLib::NAN_VALUE, bool exportSelection = false);
+	void        reset();
+	void        options();
+	void        apply();
+	void        applyAndDelete();
+	void        cancel();
+	inline void addPointToPolyline(int x, int y)
+	{
+		addPointToPolylineExt(x, y, false);
+	}
+	void addPointToPolylineExt(int x, int y, bool allowClicksOutside);
+	void closePolyLine(int x = 0, int y = 0); // arguments for compatibility with ccGlWindow::rightButtonClicked signal
 	void closeRectangle();
 	void updatePolyLine(int x, int y, Qt::MouseButtons buttons);
+	void run();
+	void stopRunning();
 	void pauseSegmentationMode(bool);
+	void setClassificationValue();
 	void doSetPolylineSelection();
 	void doSetRectangularSelection();
 	void doActionUseExistingPolyline();
 	void doExportSegmentationPolyline();
+	void onToggleRGBAndSFColors();
 
 	//! To capture overridden shortcuts (pause button, etc.)
 	void onShortcutTriggered(int);
 
-protected:
+	//! Prepare entity before removal
+	void prepareEntityForRemoval(ccHObject* entity, bool unallocateVisibilityArrays);
 
 	//! Whether to allow or not to exort the current segmentation polyline
 	void allowPolylineExport(bool state);
 
+  protected:
 	//! Set of entities to be segmented
 	QSet<ccHObject*> m_toSegment;
 
@@ -114,14 +146,14 @@ protected:
 	//! Process states
 	enum ProcessStates
 	{
-		POLYLINE		= 1,
-		RECTANGLE		= 2,
+		POLYLINE  = 1,
+		RECTANGLE = 2,
 		//...			= 4,
 		//...			= 8,
 		//...			= 16,
-		PAUSED			= 32,
-		STARTED			= 64,
-		RUNNING			= 128,
+		PAUSED  = 32,
+		STARTED = 64,
+		RUNNING = 128,
 	};
 
 	//! Current process state
@@ -137,6 +169,10 @@ protected:
 
 	//! Whether to delete hidden parts after segmentation
 	bool m_deleteHiddenParts;
-};
 
-#endif //CC_GRAPHICAL_SEGMENTATION_TOOLS_HEADER
+	//! In export mode, entities in this set will be enabled/visible
+	std::set<ccHObject*> m_enableOnClose;
+
+	//! In export mode, entities in this set will be disabled/invisible
+	std::set<ccHObject*> m_disableOnClose;
+};

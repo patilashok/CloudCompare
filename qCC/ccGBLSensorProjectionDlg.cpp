@@ -1,31 +1,36 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccGBLSensorProjectionDlg.h"
 
-//local
+// Local
 #include "ccCustomDoubleValidator.h"
 
-//qCC_db
+// qCC_db
 #include <ccGBLSensor.h>
 
+// Qt
+#include <QSharedPointer>
+
+static QSharedPointer<ccGBLSensor> s_previousSensor; //!< Previous sensor (if any)
+
 ccGBLSensorProjectionDlg::ccGBLSensorProjectionDlg(QWidget* parent)
-	: QDialog(parent)
-	, Ui::GBLSensorProjectDialog()
+    : QDialog(parent)
+    , Ui::GBLSensorProjectDialog()
 {
 	setupUi(this);
 
@@ -44,9 +49,26 @@ ccGBLSensorProjectionDlg::ccGBLSensorProjectionDlg(QWidget* parent)
 	z3rot->setValidator(new ccCustomDoubleValidator(this));
 }
 
+void ccGBLSensorProjectionDlg::initWithPrevious()
+{
+	if (s_previousSensor)
+	{
+		initWithGBLSensor(s_previousSensor.data());
+	}
+}
+
+void ccGBLSensorProjectionDlg::saveForNextTime()
+{
+	if (!s_previousSensor)
+	{
+		s_previousSensor.reset(new ccGBLSensor);
+	}
+	updateGBLSensor(s_previousSensor.data());
+}
+
 void ccGBLSensorProjectionDlg::initWithGBLSensor(const ccGBLSensor* sensor)
 {
-	if( !sensor)
+	if (!sensor)
 		return;
 
 	const int precision = sizeof(PointCoordinateType) == 8 ? 12 : 8;
@@ -61,44 +83,50 @@ void ccGBLSensorProjectionDlg::initWithGBLSensor(const ccGBLSensor* sensor)
 
 	/*** Position + Orientation ***/
 	{
-		//rotation matrix
+		// rotation matrix
 		const ccGLMatrix& rot = sensor->getRigidTransformation();
 		{
 			const float* mat = rot.data();
-			x1rot->setText(QString::number(mat[0] ,'f',precision));
-			y1rot->setText(QString::number(mat[1] ,'f',precision));
-			z1rot->setText(QString::number(mat[2] ,'f',precision));
+			x1rot->setText(QString::number(mat[0], 'f', precision));
+			y1rot->setText(QString::number(mat[1], 'f', precision));
+			z1rot->setText(QString::number(mat[2], 'f', precision));
 
-			x2rot->setText(QString::number(mat[4] ,'f',precision));
-			y2rot->setText(QString::number(mat[5] ,'f',precision));
-			z2rot->setText(QString::number(mat[6] ,'f',precision));
+			x2rot->setText(QString::number(mat[4], 'f', precision));
+			y2rot->setText(QString::number(mat[5], 'f', precision));
+			z2rot->setText(QString::number(mat[6], 'f', precision));
 
-			x3rot->setText(QString::number(mat[8] ,'f',precision));
-			y3rot->setText(QString::number(mat[9] ,'f',precision));
-			z3rot->setText(QString::number(mat[10],'f',precision));
+			x3rot->setText(QString::number(mat[8], 'f', precision));
+			y3rot->setText(QString::number(mat[9], 'f', precision));
+			z3rot->setText(QString::number(mat[10], 'f', precision));
 		}
 
-		//center
+		// center
 		const float* C = sensor->getRigidTransformation().getTranslation();
-		posXEdit->setText(QString::number(C[0],'f',precision));
-		posYEdit->setText(QString::number(C[1],'f',precision));
-		posZEdit->setText(QString::number(C[2],'f',precision));
+		posXEdit->setText(QString::number(C[0], 'f', precision));
+		posYEdit->setText(QString::number(C[1], 'f', precision));
+		posZEdit->setText(QString::number(C[2], 'f', precision));
 	}
 
 	/*** Angular steps ***/
 	{
-		//pitch step
-		pitchStepSpinBox->setValue(sensor->getPitchStep() * CC_RAD_TO_DEG);
-		//yaw step
-		yawStepSpinBox->setValue(sensor->getYawStep() * CC_RAD_TO_DEG);
+		// pitch step
+		pitchStepSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getPitchStep()));
+		// yaw step
+		yawStepSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getYawStep()));
+		// pitch range
+		minPhiDoubleSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getMinPitch()));
+		maxPhiDoubleSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getMaxPitch()));
+		// yaw range
+		minThetaDoubleSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getMinYaw()));
+		maxThetaDoubleSpinBox->setValue(CCCoreLib::RadiansToDegrees(sensor->getMaxYaw()));
 	}
 
 	/*** Other ***/
 	{
-		//max range
+		// max range
 		maxRangeDoubleSpinBox->setValue(sensor->getSensorRange());
-		//uncertainty
-		uncertaintyDoubleSpinBox->setValue(sensor->getUncertainty());
+		// uncertainty (as a percentage)
+		uncertaintyDoubleSpinBox->setValue(sensor->getUncertainty() * 100.0);
 	}
 }
 
@@ -115,27 +143,27 @@ void ccGBLSensorProjectionDlg::updateGBLSensor(ccGBLSensor* sensor)
 
 	/*** Position + Orientation ***/
 	{
-		//orientation matrix
+		// orientation matrix
 		ccGLMatrix rot;
 		{
 			float* mat = rot.data();
-			mat[0]  = x1rot->text().toFloat();
-			mat[1]  = y1rot->text().toFloat();
-			mat[2]  = z1rot->text().toFloat();
+			mat[0]     = x1rot->text().toFloat();
+			mat[1]     = y1rot->text().toFloat();
+			mat[2]     = z1rot->text().toFloat();
 
-			mat[4]  = x2rot->text().toFloat();
-			mat[5]  = y2rot->text().toFloat();
-			mat[6]  = z2rot->text().toFloat();
+			mat[4] = x2rot->text().toFloat();
+			mat[5] = y2rot->text().toFloat();
+			mat[6] = z2rot->text().toFloat();
 
 			mat[8]  = x3rot->text().toFloat();
 			mat[9]  = y3rot->text().toFloat();
 			mat[10] = z3rot->text().toFloat();
 		}
 
-		//center
+		// center
 		CCVector3 C(static_cast<PointCoordinateType>(posXEdit->text().toDouble()),
-					static_cast<PointCoordinateType>(posYEdit->text().toDouble()),
-					static_cast<PointCoordinateType>(posZEdit->text().toDouble()));
+		            static_cast<PointCoordinateType>(posYEdit->text().toDouble()),
+		            static_cast<PointCoordinateType>(posZEdit->text().toDouble()));
 		rot.setTranslation(C);
 
 		sensor->setRigidTransformation(rot);
@@ -143,18 +171,24 @@ void ccGBLSensorProjectionDlg::updateGBLSensor(ccGBLSensor* sensor)
 
 	/*** Angular steps ***/
 	{
-		//pitch step
-		sensor->setPitchStep(static_cast<PointCoordinateType>(pitchStepSpinBox->value() * CC_DEG_TO_RAD));
-		//yax step
-		sensor->setYawStep(static_cast<PointCoordinateType>(yawStepSpinBox->value() * CC_DEG_TO_RAD));
+		// pitch step
+		sensor->setPitchStep(static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(pitchStepSpinBox->value())));
+		// yax step
+		sensor->setYawStep(static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(yawStepSpinBox->value())));
+		// pitch range
+		sensor->setPitchRange(static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(minPhiDoubleSpinBox->value())),
+		                      static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(maxPhiDoubleSpinBox->value())));
+		// yaw range
+		sensor->setYawRange(static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(minThetaDoubleSpinBox->value())),
+		                    static_cast<PointCoordinateType>(CCCoreLib::DegreesToRadians(maxThetaDoubleSpinBox->value())));
 	}
 
 	/*** Other ***/
 	{
-		//max. range
+		// max. range
 		sensor->setSensorRange(static_cast<ScalarType>(maxRangeDoubleSpinBox->value()));
 
-		//uncertainty
-		sensor->setUncertainty(static_cast<ScalarType>(uncertaintyDoubleSpinBox->value()));
+		// uncertainty (as a percentage)
+		sensor->setUncertainty(static_cast<ScalarType>(uncertaintyDoubleSpinBox->value() / 100.0));
 	}
 }

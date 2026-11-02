@@ -1,6 +1,5 @@
 #################
 ## Eclipse
-
 *.pydevproject
 .project
 .metadata
@@ -129,3 +128,21 @@ pip-log.txt
 private_plugins
 /data/
 /misc/
+CCCoreLibExport.h
+/.vs/CloudCompare/v15
+/.vs/ProjectSettings.json
+/.vs/slnx.sqlite
+/.vs
+.vscode
+/CMakeSettings.json
+#VS2019 default cmake build & install paths
+/out/
+plugins/private
+# pixi environments
+.pixi
+.build
+# macOS bundle script subproducts
+macos_bundle_dependencies.json
+macos_bundle_warnings.json
+*.egg-info
+

@@ -1,163 +1,208 @@
-# Compilation of CloudCompare 2.7+ (with CMake)
+# Compilation of CloudCompare 2.14+
 
-**WARNING**: if you already have a clone of the CloudCompare git repository (prior to July 2015), you may want to update/checkout the submodules with ```git submodule update --init --recursive```
+## 1. Base dependencies
 
-## Prerequisites
+CloudCompare requires [CMake](http://www.cmake.org) to be built.
 
-1.  Clone the main repository and its submodules from the main git(hub) server: <https://github.com/cloudcompare/trunk>
+The main dependency of CloudCompare is Qt. CloudCompare 2.14+ requires Qt 6.
 
-    `git clone --recursive https://github.com/cloudcompare/trunk.git`
+- On Windows it is recommended to use the installer from the [Qt website](https://www.qt.io/).
+- On macOS you can also use the installer from Qt's website, or use homebrew.
+- On Linux it is recommended to use your distribution's package manager:
 
-2.  Install [CMake](http://www.cmake.org) (3.0 or newer)
-3.  Install Qt (http://www.qt.io/ - for *Linux/Mac OS X*: qt-sdk)
-      * CloudCompare 2.7 requires **Qt version 5.5** or newer
+Debian/ubuntu package names:
+``` bash
+# Pre Ubuntu 24.04 (Qt5 dependencies)
+sudo apt install libqt5svg5-dev libqt5opengl5-dev qt5-default qttools5-dev qttools5-dev-tools
 
-4. Make sure you have a C++11 compliant compiler (gcc 4.7+ / clang / Visual 2013 and newer)
+# Ubuntu 24.04 or later (Qt6 depencendies)
+sudo apt install qt6-base-dev qt6-svg-dev qt6-tools-dev qt6-tools-dev-tools
+```
 
-*To compile the project with older versions of Qt (from 4.8 to 5.4) or with a non C++11 compliant compiler, you'll have to stick with the https://github.com/cloudcompare/trunk/releases/tag/v2.6.3.1 version*
+## 2. Cloning
 
-## Generating the project
+The command to clone CloudCompare is:
 
-1. Launch CMake GUI (`cmake-qt-gui` on Linux, the CMake application on Mac OS X)
-  - *(for more convenience, you should check the "Grouped" check-box)*
-  - set the `Where is the source code` field to your local repository (for instance `C:\CloudCompare\trunk`)
-  - set the `Where to build the binaries` field to ... almost anywhere you want **apart from the same folder as above or the *Program Files* folder (on Windows)**. (for instance: `C:\CloudCompare\build`)
-  - click the `Configure` button
-  - select the generator for the project  
-    The following generators have been tested:
-      - Visual 2013, 2015, 2017 (64 bits)
-      - gcc (Linux 64 bits)
-      - Unix Makefiles (Mac OS X)
-      - CodeBlocks - Unix Makefiles (Mac OS X)
-  - wait for CMake configuration/tests to finish...
-  - on the first run you may have to manually set the **QT5_ROOT_PATH** variable. Make it point to your installation of Qt (on Windows it's where the 'bin' folder lies - e.g. *Qt\5.6\msvc2013_64*)
+`git clone --recursive https://github.com/cloudcompare/CloudCompare.git`
 
-2. Before clicking on the 'Generate' button, you may want to set some more options. If you expand the `OPTION` group, you'll be able to set some general options:
-  - `OPTION_BUILD_CC_VIEWER`: whether or not to build the ccViewer side project (ON by default)
-  - `OPTION_SUPPORT_MAC_PDMS_FORMAT`: to add support for PDMS .mac scripts (*CAD format*)
-  - `OPTION_USE_DXFLIB`: to add support for DXF files in CloudCompare/ccViewer with **dxflib** - see [below](#optional-setup-for-dxflib-support)
-  - `OPTION_USE_FBX_SDK`: to add support for FBX files in CloudCompare/ccViewer with the official **FBX SDK** - see [below](#optional-setup-for-fbx-sdk-support)
-  - `OPTION_USE_GDAL`: to add support for a lot of raster files in CloudCompare/ccViewer with **GDAL** libray - see [below](#gdal_setup)
-  - `OPTION_USE_LIBE57`: to add support for E57 files in CloudCompare/ccViewer with **libE57** - see [below](#libE57_setup)
-  - `OPTION_USE_LIBLAS`: to add support for LAS files in CloudCompare/ccViewer with **libLAS** - see [below](#optional-setup-for-gdal-supportt)
-  - `OPTION_USE_SHAPE_LIB`: to add support for SHP files in CloudCompare/ccViewer
+The `--recursive` **is important** as CloudCompare uses Git's submodules system to 'vendor' external libraries
+or plugins.
 
-  The following are Windows-only options:
-  - `OPTION_MP_BUILD`: for Visual Studio only *(multi-process build --> much faster but uses a lot of CPU power)*
-  - `OPTION_SUPPORT_3D_CONNEXION_DEVICES`: for 3D mouses handling
-  - `OPTION_USE_OCULUS_SDK`: to add support for the Oculus Rift SDK in CloudCompare/ccViewer (*work in progress*)
-  - `OPTION_USE_VISUAL_LEAK_DETECTOR`: to use the Visual Leak Detector library for MSVC (http://vld.codeplex.com/)
+## 3. CMake Configuration
 
-3.  If you expand the `INSTALL` group, you'll be able to select the plugin(s) you want to compile.  By default, none are selected and **none are required** to work with CloudCompare. See http://www.cloudcompare.org/doc/wiki/index.php?title=Plugins.
-  - qAnimation *(relies on ffmpeg - https://www.ffmpeg.org/ - to generate video files)*
-  - qBlur
-  - qCork (see [below](#optional-setup-for-cork--mpir-support-for-qcork))
-  - qDummy *(does nothing, template for developers)*
-  - qCSV_MATRIX_IO *(to load CSV matrix files)*
-  - qEDL
-  - qFacets
-  - qGMMReg *(relies on VXL)*
-  - qHPR
-  - qKinect *(warning: discontinued & no longer supported)*
-  - qPCL (requires PCL - see [below](#optional-setup-for-pcl-required-by-qpcl))
-  - qPCV
-  - qPoissonRecon *(note: be sure to update the PoissonRecon submodule - see above)*
-  - qRansacSD *(mainly tested on Windows but works with flaws on Linux)*
-  - qSRA
-  - qSSAO
+When doing a basic build of CloudCompare, the only CMake arguments that is required
+is the `CMAKE_PREFIX_PATH` to tell CMake where to find your Qt installation.
 
-4. _(Mac OS X only)_
+This is only required on **Windows** and **macOs** as on Linux Qt is installed in a standard location
+that CMake will find.
 
-  If you are compiling and running locally, add `-DCC_MAC_DEV_PATHS` to the `CMAKE_CXX_FLAGS` in the `CMAKE` group.  This will look for the plugins in your build directory rather than the application bundle.  If you need the shaders as well, you will have to create a `shaders` folder in the build directory and copy the shaders you need into it.
+You can also use the `CMAKE_INSTALL_PREFIX` to customize the path where CloudCompare will be installed.
 
-5.  Last but not least, the `CMAKE` group contains a `CMAKE_INSTALL_PREFIX` variable which is where CloudCompare and ccViewer will be installed (when you compile the `INSTALL` project)
-  - On Linux, default install dir is `/usr/local` (be sure to have administrative rights if you want to install CloudCompare there: once configured, you can call `# make install` from the sources directory)
-  - On Windows 7/8/10 CMake doesn't have the rights to 'install' files in the `Program Files` folder (even though it's CMake's default installation destination!)
+If you use CMake-GUI the options are the same, you just enter the values in the GUI.
 
-## Generate the project files
+Example:
+```shell
+# Windows
+mkdir build & cd build
+cmake -DCMAKE_PREFIX_PATH=C:\Qt\5.15.2\msvc2019_64 ..
 
-Once all CMake errors have been resolved (you may to click multiple times on `Configure` if necessary)  be sure to click on the 'Generate' at least once at the end. This will create the project files for the compiler/IDE you have selected at the beginning. **At this point the project still needs to be compiled**.
+# macOs
+mkdir build && cd build
+cmake -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5 ..
 
-## Compiling the project
+# Linux
+mkdir build && cd build
+cmake ..
+```
 
-Eventually you can run the compiler on the generated cmake file or open the project (e.g. for Visual Studio). The resulting files should be where you told CMake to *build the binaries* (e.g. `C:\CloudCompare\build`).
+You can always take a look at how CloudCompare is being build on [GitHub's CI](.github/workflows/build.yml)
 
-*You should always find the two following configuration/sub-projects*:
+## 4. Build
 
-1. `build all`: does all the compilation work (in the right order) but the binaries and libraries will be generated (by default) among all the other compilation files, in a somewhat complicated folder tree structure.
-2.  `install`: copies all the necessary files (executable, resources, plugins, DLLs etc.) to the `CMAKE_INSTALL_PREFIX` folder. **This is mandatory to actually launch CloudCompare or ccViewer.**
+```shell
+# Still in the build folder
+cmake --build .
+# or
+cmake --build . --parallel # use all available cores
+```
+
+## 5. Install
+
+```shell
+# Still in the build folder
+cmake --install .
+```
+
+## Optional features and plugins
+
+CloudCompare has a bunch of optional features and plugins not built by default. Below you will find a list of these options/plugins. To add an option to CMake use the `-DMY_OPTION=ON` syntax.
+
+To exemplify, `.pcd` pointcloud files generated with `PCL` will not be [readable](https://github.com/CloudCompare/CloudCompare/issues/2329#issuecomment-4392085814) by default unless you compile with `qPCL` plugin.  To solve this active `qPCL` plugin using `-DPLUGIN_STANDARD_QPCL=ON`. 
+Similarly to active to enable`qEDL` plugin, add `-DPLUGIN_GL_QEDL=ON` argument to CMake at the configuration step.
+
+Thus, the Cmake command becomes
+
+```shell
+cmake .. -DPLUGIN_STANDARD_QPCL=ON -DPLUGIN_GL_QEDL=ON
+```
+
+The optional features are:
+
+|     CMake Option      | Default Value | Description
+|-----------------------|---------------|-------------
+| OPTION_BUILD_CCVIEWER |      ON       | Whether or not to build the ccViewer side project.
+| OPTION_USE_SHAPE_LIB  |      ON       | Use the vendored shapelib to add support for SHP files.
+| OPTION_USE_DXF_LIB    |      ON       | Use the vendored dxflib to add support for DXF files.
+| OPTION_USE_GDAL       |      OFF      | Add support for a lot of raster files in CloudCompare/ccViewer with **GDAL** library.
+| OPTION_SUPPORT_3DMOUSE_WITH_HIDAPI | OFF | 3D mouse support through the hidapi library (vendored as a git submodule if not installed), no 3DxWare SDK needed.
 
 
-The Mac OS X install/release process is still a bit less automated than the others. If you are putting together a complete install (using `make install`), you will need to change the `PATH_PREFIX` variable in the script `mac_scripts/delete_rpaths.sh`.  Please see the comment in that file and if you know how to solve it, please submit a patch.
+The following options are **Windows-only**:
 
-### Working with Visual Studio on Windows
+|     CMake Option                    | Default Value | Description
+|-------------------------------------|---------------|-------------
+| OPTION_MP_BUILD                     | OFF           | Visual Studio only *(multi-process build --> much faster but uses a lot of CPU power)*
+| OPTION_SUPPORT_3DMOUSE_WITH_3DxWARE | OFF           | 3D mouse support through the 3DxWare SDK (set 3DXWARE_INCLUDE_DIR and 3DXWARE_LIB_DIR). Takes precedence over OPTION_SUPPORT_3DMOUSE_WITH_HIDAPI.
+| OPTION_USE_VISUAL_LEAK_DETECTOR     | OFF           | To use the Visual Leak Detector library for MSVC (http://vld.codeplex.com/)
 
-As all the files (executables, plugins and other DLLs) are copied in the `CMAKE_INSTALL_PREFIX` directory, the standard project launch/debug mechanism is broken. Therefore by default you won't be able to 'run' the CloudCompare or ccViewer projects as is (with F5 or Ctrl + F5 for instance). See [this post](http://www.danielgm.net/cc/forum/viewtopic.php?t=992) on the forum to setup Visual correctly.
+The available plugins are
 
-### Debugging plugins
+## GL Plugins
 
-If you want to use or debug plugins in DEBUG mode while using a single configuration compiler/IDE (gcc, etc.) the you'll have to comment the automatic definition of the `QT_NO_DEBUG` macro in '/plugins/CMakePluginTpl.cmake' (see http://www.cloudcompare.org/forum/viewtopic.php?t=2070).
+|       Plugin Name       |         CMake Option                     | Default Value | Description
+|-------------------------|------------------------------------------|---------------|-------------
+| qEDL                    | PLUGIN_GL_QEDL                           | OFF           |
+| qSSAO                   | PLUGIN_GL_QSSAO                          | OFF           |
 
-# Appendix
+## IO Plugins
 
-## Additional optional CMake setup steps
+|       Plugin Name       |         CMake Option                     | Default Value | Description
+|-------------------------|------------------------------------------|---------------|-------------
+| qAdditionalIO           | PLUGIN_IO_QADDITIONAL                    | OFF           |
+| qCoreIO                 | PLUGIN_IO_QCORE                          | ON            |
+| qCSVMatrixIO            | PLUGIN_IO_QCSV_MATRIX                    | OFF           | Add support for CSV matrix files.
+| qDraco                  | PLUGIN_IO_QDRACO                         | OFF           | Add support force draco files
+| qE57IO                  | PLUGIN_IO_QE57                           | OFF           | Add support for e57 files using **libE57**.
+| qFBXIO                  | PLUGIN_IO_QFBX                           | OFF           | Add support for AutoDesk FBX files using the official **FBX SDK**
+| qLASFWIO                | PLUGIN_IO_QLAS_FWF                       | OFF           | Windows only. Support for LAS/LAZ with and without waveform using LIBlas (***deprecated, consider using qLASIO instead***).
+| qLASIO                  | PLUGIN_IO_QLAS                           | OFF           | Support for LAS/LAZ with and without waveform (all platforms) using **LASZIP**.
+| qPDALIO                 | PLUGIN_IO_QPDAL                          | OFF           | Add support for LAS/LAZ files using PDAL (***deprecated, consider using qLASIO instead***).
+| qPhotoscanIO            | PLUGIN_IO_QPHOTOSCAN                     | OFF           |
+| qRDBIO                  | PLUGIN_IO_QRDB                           | OFF           | Add support for RDB.
+| qStepCADImport          | PLUGIN_IO_QSTEP                          | OFF           | Add support for STEP files.
 
-### [Optional] Setup for the qPoissonRecon plugin
+## Standard Plugins
 
-1. The version of the Poisson Surface Reconstruction library (M. Kazhdan et al.) used by the  is https://github.com/cloudcompare/PoissonRecon. It is declared as a submodule of CC's repository. You have to explicitly synchronize it (see https://git-scm.com/docs/git-submodule).
-2. Then simply check the INSTALL_QPOISSON_RECON_PLUGIN option in CMake
+|       Plugin Name       |         CMake Option                     | Default Value | Description
+|-------------------------|------------------------------------------|---------------|-------------
+| q3DMASC                 | PLUGIN_STANDARD_3DMASC                   | OFF           | Automatic point cloud classification: https://lidar.univ-rennes.fr/en/3dmasc
+| qAnimation              | PLUGIN_STANDARD_QANIMATION               | OFF           | Plugin to create videos: https://www.cloudcompare.org/doc/wiki/index.php/Animation_(plugin).
+| qBroom                  | PLUGIN_STANDARD_QBROOM                   | OFF           | Interactive cloud cleaning tool: https://www.cloudcompare.org/doc/wiki/index.php/Virtual_broom_(plugin)
+| qCanupo                 | PLUGIN_STANDARD_QCANUPO                  | OFF           | Automatic point cloud classification: https://www.cloudcompare.org/doc/wiki/index.php/CANUPO_(plugin)
+| qCloudLayers            | PLUGIN_STANDARD_QCLOUDLAYERS             | OFF           | Manual point cloud classification/labelling: https://www.cloudcompare.org/doc/wiki/index.php/QCloudLayers_(plugin)
+| qColorimetricSegmenter  | PLUGIN_STANDARD_QCOLORIMETRIC_SEGMENTER  | OFF           | Point cloud color-based segmentation: https://www.cloudcompare.org/doc/wiki/index.php/Colorimetric_Segmenter_(plugin)
+| qCompass                | PLUGIN_STANDARD_QCOMPASS                 | OFF           | Digitization of geological structures and structural traces on point clouds: https://www.cloudcompare.org/doc/wiki/index.php/Compass_(plugin)
+| qCork                   | PLUGIN_STANDARD_QCORK                    | OFF           | Mesh Boolean Operations: https://www.cloudcompare.org/doc/wiki/index.php/Cork_(plugin)
+| qCSF                    | PLUGIN_STANDARD_QCSF                     | OFF           | Automatic ground/non-ground classification: https://www.cloudcompare.org/doc/wiki/index.php/CSF_(plugin)
+| qFacets                 | PLUGIN_STANDARD_QFACETS                  | OFF           | Structural geology plugin: https://www.cloudcompare.org/doc/wiki/index.php/Facets_(plugin)
+| qHoughNormals           | PLUGIN_STANDARD_QHOUGH_NORMALS           | OFF           | Normals computation: https://www.cloudcompare.org/doc/wiki/index.php/HoughNormals_(plugin)
+| qHPR                    | PLUGIN_STANDARD_QHPR                     | OFF           | Hidden Point Removal: https://www.cloudcompare.org/doc/wiki/index.php/Hidden_Point_Removal_(plugin)
+| qJSonRPCPlugin          | PLUGIN_STANDARD_QJSONRPC                 | OFF           | Json/RPC control plugin
+| qM3C2                   | PLUGIN_STANDARD_QM3C2                    | OFF           | Robust point cloud distances computation: https://www.cloudcompare.org/doc/wiki/index.php/M3C2_(plugin)
+| qMasonry                |                                          |               | Segmentation of masonry structures: https://www.cloudcompare.org/doc/wiki/index.php/Masonry_Segmentation_(plugin)
+|  - qAutoSeg             | PLUGIN_STANDARD_MASONRY_QAUTO_SEG        | OFF           |
+|  - qManualSeg           | PLUGIN_STANDARD_MASONRY_QMANUAL_SEG      | OFF           |
+| qMeshBoolean            | PLUGIN_STANDARD_QMESH_BOOLEAN            | OFF           | Mesh Boolean Operations: https://www.cloudcompare.org/doc/wiki/index.php/Mesh_Boolean_(plugin)
+| qMPlane                 | PLUGIN_STANDARD_QMPLANE                  | OFF           | Normal distance measurements against a defined plane: https://www.cloudcompare.org/doc/wiki/index.php/MPlane_(plugin)
+| qPCL                    | PLUGIN_STANDARD_QPCL                     | OFF           | Interface to some algorithms of the PCL library: https://www.cloudcompare.org/doc/wiki/index.php/Point_Cloud_Library_Wrapper_(plugin)
+| qPCV                    | PLUGIN_STANDARD_QPCV                     | OFF           | Ambient Occlusion for meshes or point clouds: https://www.cloudcompare.org/doc/wiki/index.php/ShadeVis_(plugin)
+| qPoissonRecon           | PLUGIN_STANDARD_QPOISSON_RECON           | OFF           | Surface Mesh Reconstruction: https://www.cloudcompare.org/doc/wiki/index.php/Poisson_Surface_Reconstruction_(plugin)
+| qRANSAC_SD              | PLUGIN_STANDARD_QRANSAC_SD               | OFF           | Automatic RANSAC shape detection: https://www.cloudcompare.org/doc/wiki/index.php/RANSAC_Shape_Detection_(plugin)
+| qSRA                    | PLUGIN_STANDARD_QSRA                     | OFF           | Surface of Revolution Analysis: https://www.cloudcompare.org/doc/wiki/index.php/Surface_of_Revolution_Analysis_(plugin)
+| qTreeIso                | PLUGIN_STANDARD_QTREEISO                 | OFF           | Individual Tree Isolation: https://www.cloudcompare.org/doc/wiki/index.php/Treeiso_(plugin)
 
-### [Optional] Setup for LibLAS support
+## Additional Instructions
 
-If you want to compile CloudCompare (and ccViewer) with LAS/LAZ files support, you'll need:
+Some plugins do not have their dependencies vendored in CloudCompare's repo, thus they require additional steps
+to install them. This section aims to document the steps for these plugins.
 
-1.  [LibLAS](http://liblas.org) (*last tested version: 1.8 on Windows*)
-2.  and optionally [laszip](http://www.laszip.org/) for LAZ files support (*last tested version: 2.2.0 on Windows*) --> prefer the static version (`BUILD_STATIC` in LASzip CMake configuration) and mind the `WITH_STATIC_LASZIP` option in libLAS CMake configuration! (*only appears in 'Advanced' mode*)
-3. [Boost](http://www.boost.org/) multi-thread static libraries
-  - make the `BOOST_ROOT` environment variable point to your Boost installation before launching CMake in order for the automatic `find_package` script to work properly
-  - otherwise refer to LibLAS [documentation](http://liblas.org/compilation.html) for more directions
+### qAnimation
 
-Then, the CloudCompare CMake project will request that you set the 3 following variables:
+The qAnimation plugin has an additional option `QANIMATION_WITH_FFMPEG_SUPPORT` to be able to create
+movies with FFMPEG.
 
-1. `LIBLAS_INCLUDE_DIR`: LibLAS include directory (pretty straightforward ;))
-2. `LIBLAS_RELEASE_LIBRARY_FILE`: main LibLAS release library (the .lib or .a file itself!)
-3. [Windows] `LIBLAS_SHARED_LIBRARY_FILE`: full path to the `liblas.dll` file
-
-*For the moment, only the release version of CloudCompare supports LibLAS files*
-
-### [Optional] Setup for LibE57 support
+### qE57IO
 
 If you want to compile CloudCompare (and ccViewer) with LibE57 files support, you'll need:
 
-1. [Boost](http://www.boost.org/) multi-thread static libraries (same as [libLAS](#liblas_setup))
-2. [Xerces-C++](http://xerces.apache.org/xerces-c) multi-thread **static** libraries
+1. [Xerces-C++](http://xerces.apache.org/xerces-c) multi-thread **static** libraries
+    - On Ubuntu install the package `libxerces-c-dev`
     - On Visual C++ (Windows):
         1. select the `Static Debug` or `Static Release` configurations
-        2. you'll have to manually modify the `XercesLib` project options so that the `C/C++ > Code Generation > Runtime Library` are of DLL type in both release and debug modes (i.e. `/MD` in release or `/MDd` in debug)
-        3. for 64 bits version be sure to select the right platform (x64 instead of Win32). If you use Visual Studio Express 2010, be sure also that the `toolset` (in the project properties) is set to something like `Windows7.1SDK`
+        2. you'll have to manually modify the `XercesLib` project options so that
+           the `C/C++ > Code Generation > Runtime Library` are of DLL type in both release and debug modes (i.e. `/MD`
+           in release or `/MDd` in debug)
+        3. for 64 bits version be sure to select the right platform (x64 instead of Win32). If you use Visual Studio
+           Express 2010, be sure also that the `toolset` (in the project properties) is set to something
+           like `Windows7.1SDK`
     - only the XercesLib project neet to be compiled
-    - eventually, CMake will look for the resulting files in `/include` (instead of `/src`) and `/lib` (without the Release or Debug subfolders). By default the visual project will put them in `/Build/WinXX/VCXX/StaticXXX`. Therefore you should create a custom folder with the right organization and copy the files there.
+    - eventually, CMake will look for the resulting files in `/include` (instead of `/src`) and `/lib` (without the
+      Release or Debug subfolders). By default the visual project will put them in `/Build/WinXX/VCXX/StaticXXX`.
+      Therefore you should create a custom folder with the right organization and copy the files there.
 
-3. [LibE57](http://libe57.org) (*last tested version: 1.1.312 on Windows*)
-    - **WARNING**: with Visual Studio (at least), you'll need the libraries compiled with `/MD` (=DLL Multithreaded) in release mode and `/MDd` in debug mode. You may have to replace all `/MT` by `/MD` in the main libE57 root CMake file (or in `cmake/c_flag_overrides.cmake` and `cmake/cxx_flag_overrides.cmake` if there's no `/MT` in it)
-    - If you found `set(Boost_USE_STATIC_RUNTIME ON)` in the CMake file, comment it
-    - **the version 1.1.312 of libE57 has a small glitch that must be manually patched**:
-        1.  open `E57FoundationImpl.cpp` and browse to the `CheckedFile::operator<<(float f)` method (line 4670)
-        2.  set the output precision to 8 instead of 7! (otherwise the interal checks for precision loss may fail and libE57 will throw an exception)
+2. [LibE57](https://github.com/asmaloney/libE57Format) (*last tested version: 2.0.1 on Windows*)
+    - Checkout the submodule in `plugins/core/IO/qE57IO/extern/libE57Format` or download and extract the
+      latest [libE57Format](https://github.com/asmaloney/libE57Format) release
 
-The CloudCompare CMake project will only require that you set the path where libE57 has been installed (`LIBE57_INSTALL_DIR`)
+### qPCL
 
-### [Optional] Setup for PCL (required by qPCL)
+qPCL relies on the PCL library. Follow the instructions from their website [PCL](http://pointclouds.org/).
 
-If you want to compile qPCL you'll need [PCL](http://pointclouds.org/) (*last tested version: 1.8 on Windows and 1.6 on Linux*)
+### qFBXIO
 
-Follow the online instructions/tutorials. Basically, you'll need Boost, Qt, Flann and Eigen.
-
-Once properly installed, the CloudCompare CMake script should automatically find PCL definitions. However, you'll have to set again the parameters related to Flann and Eigen.
-
-### [Optional] Setup for FBX SDK support
-
-If you want to compile CloudCompare (and ccViewer) with FBX files support, you'll need: The official [Autodesk's FBX SDK](http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=10775847) (last tested version: 2015.1 on Windows)
+If you want to compile CloudCompare (and ccViewer) with FBX files support, you'll need: The
+official [Autodesk's FBX SDK](http://usa.autodesk.com/adsk/servlet/pc/item?siteID=123112&id=10775847) (last tested
+version: 2015.1 on Windows)
 
 Then, the CloudCompare CMake project will request that you set the 3 following variables:
 
@@ -165,25 +210,88 @@ Then, the CloudCompare CMake project will request that you set the 3 following v
 2. `FBX_SDK_LIBRARY_FILE`: main FBX SDK library (e.g. `libfbxsdk-md.lib`)
 3. `FBX_SDK_LIBRARY_FILE_DEBUG`: main FBX SDK library for debug mode (if any)
 
-### [Optional] Setup for GDAL support
+### qLASIO
 
-If you want to compile CloudCompare (and ccViewer) with GDAL (raster) files support, you'll need a compiled version of the [GDAL library](http://www.gdal.org/) (last tested version: 1.10 on Windows, 2.0.2 on Mac OS X)
+If you want to compile CloudCompare (and ccViewer) with LAS/LAZ files support,
+you'll need [LASZip](https://laszip.org/).
 
-Then, the CloudCompare CMake project will request that you set the 2 following variables:
+### qPDALIO [deprecated]
+
+If you want to compile the deprecated PDAL I/O plugin to load LAS/LAZ files,
+you'll need [PDAL](https://pdal.io/).
+
+### qLASFWIO [deprecated]
+
+The deprecated LAS FWF I/O plugin can also be compiled on Windows with
+[LASlib](https://github.com/CloudCompare/LAStools).
+
+You'll have to set the following variables:
+-   `LASLIB_INCLUDE_DIR`: LAStools/LASlib/inc
+-   `LASZIP_INCLUDE_DIR`: LAStools/LASzip/src
+-   `LASLIB_RELEASE_LIBRARY` or `LASLIB_DEBUG_LIBRARY`, depending on build type: the compiled library, e.g. `LAStools/LASlib/VC14/lib/x64/LASlibVC14.lib`
+
+### GDAL support
+
+If you want to compile CloudCompare (and ccViewer) with GDAL (raster) files support, you'll need a compiled version of
+the [GDAL library](http://www.gdal.org/) (last tested version: 2.2.1 on Windows, 2.0.2 on Mac OS X)
+
+Then, the CloudCompare CMake project will request that you set the following variables:
 1. `GDAL_INCLUDE_DIR`: GDAL include directory (pretty straightforward ;)
 2. `GDAL_LIBRARY`: the static library (e.g. `gdal_i.lib`)
+3. `GDAL_BIN_DIR`: on Windows, the folder with DLL files
 
-### [Optional] Setup for Cork + MPIR support (for qCork)
+### qCork + MPIR support
 
 If you want to compile the qCork plugin (**on Windows only for now**), you'll need:
 
 1. [MPIR 2.6.0](http://www.mpir.org/)
-2. the forked version of the Cork library for CC: [<https://github.com/cloudcompare/cork>](https://github.com/cloudcompare/cork)
+2. the forked version of the Cork library for
+   CC: [<https://github.com/cloudcompare/cork>](https://github.com/cloudcompare/cork)
     - on Windows see the Visual project shipped with this fork and corresponding to your version (if any ;)
-    - for VS2013 just edit the `mpir` property sheet (in the Properties manager) and update the MPIR macro (in the `User macros` tab)
+    - for VS2013 just edit the `mpir` property sheet (in the Properties manager) and update the MPIR macro (in
+      the `User macros` tab)
 
 Then, the CloudCompare CMake project will request that you set the following variables:
 
 1. `CORK_INCLUDE_DIR` and `MPIR_INCLUDE_DIR`: both libraries include directories (pretty straightforward ;)
 2. `CORK_RELEASE_LIBRARY_FILE` and `MPIR_RELEASE_LIBRARY_FILE`: both main library files
 3. and optionally `CORK_DEBUG_LIBRARY_FILE` and `MPIR_DEBUG_LIBRARY_FILE`: both main library files (for debug mode)
+
+4. Make sure you have a C++11 compliant compiler (gcc 4.7+ / clang / Visual 2013 and newer)
+
+*To compile the project with older versions of Qt (from 4.8 to 5.4) or with a non C++11 compliant compiler, you'll have to stick with the https://github.com/cloudcompare/CloudCompare/releases/tag/v2.6.3.1 version*
+
+
+5.  Last but not least, the `CMAKE` group contains a `CMAKE_INSTALL_PREFIX` variable which is where CloudCompare and ccViewer will be installed (when you compile the `INSTALL` project)
+  - On Linux, default install dir is `/usr/local` (be sure to have administrative rights if you want to install CloudCompare there: once configured, you can call `# make install` from the sources directory)
+  - On Windows 7/8/10 CMake doesn't have the rights to 'install' files in the `Program Files` folder (even though it's CMake's default installation destination!)
+
+
+# Other things
+
+## Linux
+
+With versions of CMake prior to 3.13, the compiled application might not work for all users (due to some libraries being linked from the /usr/local directory). See https://github.com/CloudCompare/CloudCompare/issues/1680.
+
+## macOS
+
+If you are compiling and running locally, add `-DCC_MAC_DEV_PATHS` to the `CMAKE_CXX_FLAGS` in the `CMAKE` group. This
+will look for the plugins in your build directory rather than the application bundle. If you need the shaders as well,
+you will have to create a `shaders` folder in the build directory and copy the shaders you need into it.
+
+For convenience, we provide a 100% self contained build system based on `pixi`. Simply install `pixi` from the [official website](https://pixi.sh) and in the root directory of CC code repository simply launch `pixi run build` and then `pixi run CloudCompare`.
+You can also create a portable (relocatable) `.app` by using `pixi run bundle`. You could find the bundle in `.build/install/CloudCompare` directory.
+
+## Working with Visual Studio on Windows
+
+As all the files (executables, plugins and other DLLs) must be copied in the `CMAKE_INSTALL_PREFIX` directory prior to execution,
+the standard project launch/debug mechanism is broken. Therefore, by default you won't be able to 'run' the CloudCompare or ccViewer
+projects as is (with F5 or Ctrl + F5 for instance).
+
+See [this post](http://www.danielgm.net/cc/forum/viewtopic.php?t=992) on the CloudCompare forum to setup Visual Studio correctly.
+
+## Debugging plugins
+
+If you want to use or debug plugins in DEBUG mode while using a single configuration compiler/IDE (gcc, etc.) the you'll have to comment the automatic definition of the `QT_NO_DEBUG` macro in '/plugins/CMakePluginTpl.cmake' (see http://www.cloudcompare.org/forum/viewtopic.php?t=2070).
+
+If you wish to specify a custom directory to search for plugins, shaders, or translations, you may set the `CC_PLUGIN_PATH`, `CC_SHADER_PATH`, and `CC_TRANSLATION_PATH` environment variables. The paths may be relative to the current working directory or absolute.

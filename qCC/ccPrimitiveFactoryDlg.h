@@ -1,57 +1,61 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_PRIMITIVE_FACTORY_DLG_HEADER
-#define CC_PRIMITIVE_FACTORY_DLG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
+// Ui
 #include <ui_primitiveFactoryDlg.h>
 
-//Qt
+// Qt
 #include <QDialog>
 
 class MainWindow;
+class ccGLMatrix;
 
 //! Primitive factory
-class ccPrimitiveFactoryDlg : public QDialog, public Ui::PrimitiveFactoryDlg
+class ccPrimitiveFactoryDlg : public QDialog
+    , public Ui::PrimitiveFactoryDlg
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
 	explicit ccPrimitiveFactoryDlg(MainWindow* win);
 
-protected slots:
-
+  protected:
 	//! Creates currently defined primitive
 	void createPrimitive();
 
-protected:
+  protected:
 	//! Set sphere position from clipboard
 	void setSpherePositionFromClipboard();
 
 	//! Set sphere position to origin
 	void setSpherePositionToOrigin();
 
-protected:
+	void setCoordinateSystemBasedOnSelectedObject();
 
+	void onMatrixTextChange();
+
+	void setCSMatrixToIdentity();
+
+	ccGLMatrix getCSMatrix(bool& valid);
+
+  protected:
 	//! Associated main window
 	MainWindow* m_win;
-
 };
-
-#endif //CC_PRIMITIVE_FACTORY_DLG_HEADER

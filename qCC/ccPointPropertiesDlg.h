@@ -1,26 +1,26 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_POINT_PROPERTIES_DIALOG_HEADER
-#define CC_POINT_PROPERTIES_DIALOG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
+// Local
 #include "ccPointPickingGenericInterface.h"
 
-//Local
+// Ui
 #include <ui_pointPropertiesDlg.h>
 
 class cc2DLabel;
@@ -28,24 +28,23 @@ class cc2DViewportLabel;
 class ccHObject;
 
 //! Dialog for simple point picking (information, distance, etc.)
-class ccPointPropertiesDlg : public ccPointPickingGenericInterface, public Ui::PointPropertiesDlg
+class ccPointPropertiesDlg : public ccPointPickingGenericInterface
+    , public Ui::PointPropertiesDlg
 {
 	Q_OBJECT
 
-public:
-
+  public:
 	//! Default constructor
 	explicit ccPointPropertiesDlg(ccPickingHub* pickingHub, QWidget* parent);
 	//! Default destructor
-	virtual ~ccPointPropertiesDlg();
+	~ccPointPropertiesDlg() override;
 
-	//inherited from ccPointPickingGenericInterface
-	virtual bool start();
-	virtual void stop(bool state);
-	virtual bool linkWith(ccGLWindow* win);
+	// inherited from ccPointPickingGenericInterface
+	bool start() override;
+	void stop(bool state) override;
+	bool linkWith(ccGLWindowInterface* win) override;
 
-protected slots:
-
+  protected:
 	void onClose();
 	void activatePointPropertiesDisplay();
 	void activateDistanceDisplay();
@@ -57,13 +56,15 @@ protected slots:
 	void processClickedPoint(int x, int y);
 	void close2DZone();
 
-signals:
+	//! To capture overridden shortcuts (pause button, etc.)
+	void onShortcutTriggered(int);
+
+  Q_SIGNALS:
 
 	//! Signal emitted when a new label is created
 	void newLabel(ccHObject*);
 
-protected:
-
+  protected:
 	//! Picking mode
 	enum Mode
 	{
@@ -73,8 +74,8 @@ protected:
 		RECT_ZONE
 	};
 
-	//inherited from ccPointPickingGenericInterface
-	void processPickedPoint(ccPointCloud* cloud, unsigned pointIndex, int x, int y);
+	// inherited from ccPointPickingGenericInterface
+	void processPickedPoint(const PickedItem& picked) override;
 
 	//! Current picking mode
 	Mode m_pickingMode;
@@ -84,7 +85,4 @@ protected:
 
 	//! Associated 2D label
 	cc2DViewportLabel* m_rect2DLabel;
-
 };
-
-#endif

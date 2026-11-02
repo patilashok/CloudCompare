@@ -1,51 +1,52 @@
-//##########################################################################
-//#                                                                        #
-//#                   CLOUDCOMPARE LIGHT VIEWER                            #
-//#                                                                        #
-//#  This project has been initiated under funding from ANR/CIFRE          #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#      +++ COPYRIGHT: EDF R&D + TELECOM ParisTech (ENST-TSI) +++         #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CCVIEWER_LOG_HEADER
-#define CCVIEWER_LOG_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                   CLOUDCOMPARE LIGHT VIEWER                            #
+// #                                                                        #
+// #  This project has been initiated under funding from ANR/CIFRE          #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #      +++ COPYRIGHT: EDF R&D + TELECOM ParisTech (ENST-TSI) +++         #
+// #                                                                        #
+// ##########################################################################
 
-//Qt
-#include <QMessageBox>
+// Qt
 #include <QMainWindow>
+#include <QMessageBox>
 
-//qCC_db
+// qCC_db
 #include <ccLog.h>
 
 //! Minimalist logger (only displays error messages)
 class ccViewerLog : public ccLog
 {
-public:
+  public:
 	//! Default constructor
-	explicit ccViewerLog(QMainWindow* parentWindow = 0) : ccLog(), m_parentWindow(parentWindow) {}
-
-protected:
-	//inherited from ccLog
-	virtual void logMessage(const QString& message, int level)
+	explicit ccViewerLog(QMainWindow* parentWindow = 0)
+	    : ccLog()
+	    , m_parentWindow(parentWindow)
 	{
-		if (level & LOG_ERROR)
+	}
+
+  protected:
+	// inherited from ccLog
+	void logMessage(const Message& message)
+	{
+		if (message.level & LOG_ERROR)
 		{
-			QMessageBox::warning(m_parentWindow, "Error", message);
+			QMessageBox::warning(m_parentWindow, "Error", message.text);
 		}
 	}
 
 	//! Associated window
 	QMainWindow* m_parentWindow;
 };
-
-#endif // CCVIEWER_LOG_HEADER

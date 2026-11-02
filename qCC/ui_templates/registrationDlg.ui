@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>386</width>
-    <height>427</height>
+    <width>467</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
          <string>'data' entity</string>
         </property>
         <property name="text">
-         <string>aligned</string>
+         <string>to be aligned</string>
         </property>
        </widget>
       </item>
@@ -42,7 +42,7 @@
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;entity to align (will be displaced)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="statusTip">
-         <string>the data cloud is the entity to align with the model cloud : it will be displaced (red cloud)</string>
+         <string>Entity to align (will be displaced)</string>
         </property>
         <property name="readOnly">
          <bool>true</bool>
@@ -54,18 +54,12 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="text">
-         <string/>
-        </property>
        </widget>
       </item>
       <item row="0" column="0">
        <widget class="QToolButton" name="dataColorButton">
         <property name="enabled">
          <bool>false</bool>
-        </property>
-        <property name="text">
-         <string/>
         </property>
        </widget>
       </item>
@@ -85,7 +79,7 @@
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;reference entity (won't move)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="statusTip">
-         <string>the model cloud is the reference : it won't move (yellow cloud)</string>
+         <string>Reference entity (won't move)</string>
         </property>
         <property name="readOnly">
          <bool>true</bool>
@@ -145,7 +139,7 @@
             <string>Set the maximal number of step for the algorithm regsitration computation .</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
            <property name="minimum">
             <number>1</number>
@@ -183,13 +177,13 @@
             <string>Set the minimum RMS improvement between 2 consecutive iterations (below which the registration process will stop).</string>
            </property>
            <property name="layoutDirection">
-            <enum>Qt::RightToLeft</enum>
+            <enum>Qt::LayoutDirection::RightToLeft</enum>
            </property>
            <property name="text">
-            <string>1.0e-5</string>
+            <string notr="true">1.0e-5</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -199,7 +193,7 @@
             <string>Rough estimation of the final overlap ratio of the data cloud (the smaller, the better the initial registration should be!)</string>
            </property>
            <property name="styleSheet">
-            <string notr="true">color: blue;</string>
+            <string notr="true">color: red;</string>
            </property>
            <property name="text">
             <string>Final overlap</string>
@@ -212,13 +206,13 @@
             <string>Rough estimation of the final overlap ratio of the data cloud (the smaller, the better the initial registration should be!)</string>
            </property>
            <property name="styleSheet">
-            <string notr="true">color: blue;</string>
+            <string notr="true">color: red;</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
            <property name="suffix">
-            <string>%</string>
+            <string notr="true">%</string>
            </property>
            <property name="minimum">
             <number>1</number>
@@ -239,7 +233,7 @@
        <item>
         <spacer name="verticalSpacer_2">
          <property name="orientation">
-          <enum>Qt::Vertical</enum>
+          <enum>Qt::Orientation::Vertical</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
@@ -250,73 +244,263 @@
         </spacer>
        </item>
        <item>
-        <widget class="QCheckBox" name="adjustScaleCheckBox">
-         <property name="statusTip">
-          <string>Whether to adjust the scale of the 'data' entity</string>
-         </property>
-         <property name="text">
+        <widget class="QGroupBox" name="adjustScaleGroupBox">
+         <property name="title">
           <string>adjust scale</string>
          </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QCheckBox" name="scaleRangeCheckBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>constrain scale</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QFrame" name="scaleRangeFrame">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_6">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QDoubleSpinBox" name="minScaleDoubleSpinBox">
+               <property name="prefix">
+                <string>min = </string>
+               </property>
+               <property name="decimals">
+                <number>3</number>
+               </property>
+               <property name="minimum">
+                <double>0.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>9999.000000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.500000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_7">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>-</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="maxScaleDoubleSpinBox">
+               <property name="prefix">
+                <string>max = </string>
+               </property>
+               <property name="suffix">
+                <string/>
+               </property>
+               <property name="decimals">
+                <number>3</number>
+               </property>
+               <property name="maximum">
+                <double>9999.000000000000000</double>
+               </property>
+               <property name="value">
+                <double>2.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
-         <item>
-          <widget class="QFrame" name="threadCountFrame">
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_8">
-            <property name="leftMargin">
-             <number>0</number>
+        <widget class="QFrame" name="frame_2">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="useNormalsFrame">
+         <property name="frameShape">
+          <enum>QFrame::Shape::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Shadow::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Normals</string>
             </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="normalsComboBox">
+            <property name="toolTip">
+             <string>options to take normals into account, to improve the registration result</string>
             </property>
             <item>
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>max thread count</string>
-              </property>
-             </widget>
+             <property name="text">
+              <string>Ignored</string>
+             </property>
             </item>
             <item>
-             <widget class="QSpinBox" name="maxThreadCountSpinBox">
-              <property name="toolTip">
-               <string>Maximum number of threads/cores to be used
+             <property name="text">
+              <string>Opposite side</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Same side</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Double-sided</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="threadingFrame">
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QFrame" name="threadCountFrame">
+            <property name="frameShape">
+             <enum>QFrame::Shape::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Raised</enum>
+            </property>
+            <layout class="QHBoxLayout" name="horizontalLayout_8">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="label_6">
+               <property name="text">
+                <string>max thread count</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="maxThreadCountSpinBox">
+               <property name="toolTip">
+                <string>Maximum number of threads/cores to be used
 (CC or your computer might not respond for a while if you use all available cores)</string>
-              </property>
-              <property name="suffix">
-               <string> / 8</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
+               </property>
+               <property name="suffix">
+                <string notr="true"> / 8</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -340,7 +524,7 @@
             <string>Above this limit, clouds are randomly resampled at each iteration</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
            <property name="maximum">
             <number>1000000000</number>
@@ -365,7 +549,7 @@
             <string>Rotation</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -378,26 +562,31 @@
             </sizepolicy>
            </property>
            <property name="layoutDirection">
-            <enum>Qt::RightToLeft</enum>
+            <enum>Qt::LayoutDirection::RightToLeft</enum>
            </property>
            <item>
             <property name="text">
-             <string>XYZ</string>
+             <string notr="true">XYZ</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>X</string>
+             <string notr="true">X</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Y</string>
+             <string notr="true">Y</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Z</string>
+             <string notr="true">Z</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>NONE</string>
             </property>
            </item>
           </widget>
@@ -423,7 +612,7 @@
            <item>
             <spacer name="horizontalSpacer">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -442,7 +631,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Tx</string>
+              <string notr="true">Tx</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -458,7 +647,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Ty</string>
+              <string notr="true">Ty</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -474,7 +663,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Tz</string>
+              <string notr="true">Tz</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -504,7 +693,7 @@
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use the displayed scalar field as weights (the bigger its associated scalar value/weight is, the more influence the point will have).&lt;/p&gt;&lt;p&gt;Note that only absolute distances are considered (i.e. minimal weight is 0).&lt;/p&gt;&lt;p&gt;Weights are automatically normalized.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Data: use displayed S.F. as weights</string>
+          <string>Data: use displayed S.F. (absolute values) as weights</string>
          </property>
         </widget>
        </item>
@@ -514,9 +703,70 @@
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Use the displayed scalar field as weights (the bigger its associated scalar value/weight is, the more influence the point will have).&lt;/p&gt;&lt;p&gt;Note that only absolute distances are considered (i.e. minimal weight is 0).&lt;/p&gt;&lt;p&gt;Weights are automatically normalized.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="text">
-          <string>Model: use displayed S.F. as weights (only for clouds)</string>
+          <string>Model: use displayed S.F. (absolute values) as weights</string>
          </property>
         </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="c2mDistancesFrame">
+         <property name="frameShape">
+          <enum>QFrame::Shape::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Shadow::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="useC2MSignedDistancesCheckBox">
+            <property name="toolTip">
+             <string>In combination with a small overlap, prevents
+the cloud from sinking under the mesh surface.</string>
+            </property>
+            <property name="text">
+             <string>Use C2M signed distances (mesh as reference only)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="robustC2MDistsCheckBox">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>robust</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -525,10 +775,10 @@
    <item>
     <widget class="QFrame" name="frame">
      <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+      <enum>QFrame::Shape::NoFrame</enum>
      </property>
      <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+      <enum>QFrame::Shadow::Raised</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <property name="spacing">
@@ -552,7 +802,7 @@
    <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
-      <enum>Qt::Vertical</enum>
+      <enum>Qt::Orientation::Vertical</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
@@ -565,10 +815,10 @@
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
      </property>
     </widget>
    </item>
@@ -645,6 +895,38 @@
     <hint type="destinationlabel">
      <x>237</x>
      <y>193</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>useC2MSignedDistancesCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>robustC2MDistsCheckBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>155</x>
+     <y>318</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>342</x>
+     <y>318</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>scaleRangeCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>scaleRangeFrame</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>72</x>
+     <y>310</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>269</x>
+     <y>310</y>
     </hint>
    </hints>
   </connection>

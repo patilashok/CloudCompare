@@ -2,15 +2,15 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "CloudCompare"
-#define MyAppVersion "2.9.1"
+#define MyAppVersion "2.14.beta (06-29-2026)"
 #define MyAppPublisher "Daniel Girardeau-Montaut"
 #define MyAppURL "http://www.cloudcompare.org/"
 #define MyAppExeName "CloudCompare.exe"
 #define MyVCRedistPath "E:\These\C++\CloudCompare\vc_redist"
 #define MyFaroRedistPath "E:\These\C++\Faro\redist"
-#define MyFaroRedistExe "FARO LS 5.5.3.16 x64 Setup.exe"
-#define MyCCPath "E:\These\C++\CloudCompare\bin_x64_msvc_2013\CloudCompare"
-#define MyOutputDir "E:\These\C++\CloudCompare\bin_x64_msvc_2013"
+#define MyFaroRedistExe "FARO LS 2020.0.7.6378 Setup.exe"
+#define MyCCPath "E:\These\C++\CloudCompare\bin_x64_msvc_2022\CloudCompare"
+#define MyOutputDir "E:\These\C++\CloudCompare\bin_x64_msvc_2022"
 #define MyCreationDate GetDateTimeString('mm_dd_yyyy', '', '')
 
 [Setup]
@@ -18,14 +18,14 @@
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppID={{4DE0A2C8-03F9-4B3F-BAFC-1D5F2141464B}
-AppName={#MyAppName}
+AppName={#MyAppName}                                                                
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={pf}\{#MyAppName}
+DefaultDirName={commonpf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 AllowNoIcons=true
@@ -36,30 +36,46 @@ OutputDir={#MyOutputDir}
 InternalCompressLevel=Ultra64
 ; "ArchitecturesAllowed=x64" specifies that Setup cannot run on
 ; anything but x64.
-ArchitecturesAllowed=x64
+ArchitecturesAllowed=x64compatible
 ; "ArchitecturesInstallIn64BitMode=x64" requests that the install be
 ; done in "64-bit mode" on x64, meaning it should use the native
 ; 64-bit Program Files directory and the 64-bit view of the registry.
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64os
+; Installer signing
+; SignToolWindows=signtool.exe sign /debug /n "Open Source Developer, Daniel Girardeau-Montaut" /t http://timestamp.digicert.com /fd sha256 /v $f
+SignTool=SignToolWindows
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Types]
+Name: "compact"; Description: "Compact installation";
+Name: "full"; Description: "Full installation";
+Name: "custom"; Description: "Custom installation"; Flags: iscustom;
+
+[Components]
+Name: main; Description: "Main program"; Types: compact full custom;
+Name: faro_ls; Description: "Faro plugin"; Types: full;
+Name: python_plugin; Description: "Python plugin"; Types: full;
+
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}";
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
-; Warning: update the 'Faro support' checbkox index in the NextButtonClick method if you insert another checbkox above this one!!!
-Name: "StartMenuEntry" ; Description: "Install Faro I/O plugin (to load FWS/FLS files). The will install Faro LS redistributable package as well." ; GroupDescription: "Faro LS support";  Flags: unchecked
+Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: main
+Name: quicklaunchicon; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: main; Flags: unchecked
 
 [Files]
-Source: "{#MyCCPath}\CloudCompare.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyCCPath}\*"; Excludes: "*.manifest,QBRGM*.dll,QFARO*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; DotProduct support
-Source: "{#MyVCRedistPath}\vcredist_2013_x64.exe"; DestDir: {tmp}; Flags: deleteafterinstall 64bit;
+Source: "{#MyCCPath}\CloudCompare.exe"; DestDir: "{app}"; Components: main; Flags: ignoreversion
+Source: "{#MyCCPath}\*"; Excludes: "*.manifest,QFARO*.dll,PythonRuntime.dll,plugins-python,Python"; DestDir: "{app}"; Components: main; Flags: ignoreversion recursesubdirs createallsubdirs
+; Unknown dependency support:)
+Source: "{#MyVCRedistPath}\vcredist_2013_x64.exe"; DestDir: {tmp};  Components: main; Flags: deleteafterinstall 64bit;
+; All other Visual Studio dependencies at once: 2015, 2017, 2019 and 2022
+Source: "{#MyVCRedistPath}\VC_redist.x64.exe"; DestDir: {tmp};  Components: main; Flags: deleteafterinstall 64bit;
 ; FARO LS support
-Source: "{#MyFaroRedistPath}\x64\{#MyFaroRedistExe}"; DestDir: {tmp}; Flags: deleteafterinstall 64bit; Check: WithFaro
-Source: "{#MyFaroRedistPath}\x64\{#MyAppExeName}.manifest"; DestDir: "{app}"; Flags: ignoreversion; Check: WithFaro
-Source: "{#MyCCPath}\plugins\QFARO*.dll"; DestDir: "{app}\plugins"; Flags: ignoreversion; Check: WithFaro
+Source: "{#MyFaroRedistPath}\x64\{#MyFaroRedistExe}"; DestDir: {tmp};  Components: faro_ls; Flags: deleteafterinstall 64bit;
+Source: "{#MyFaroRedistPath}\x64\{#MyAppExeName}.manifest"; DestDir: "{app}"; Components: faro_ls; Flags: ignoreversion;
+Source: "{#MyCCPath}\plugins\QFARO*.dll"; DestDir: "{app}\plugins"; Components: faro_ls; Flags: ignoreversion;
+Source: "{#MyCCPath}\plugins\PythonRuntime.dll"; DestDir: "{app}\plugins"; Components: python_plugin; Flags: ignoreversion;
+Source: "{#MyCCPath}\plugins\Python\*"; DestDir: "{app}\plugins\Python"; Components: python_plugin; Flags: ignoreversion recursesubdirs createallsubdirs;
+Source: "{#MyCCPath}\plugins-python\*"; DestDir: "{app}\plugins-python"; Components: python_plugin; Flags: ignoreversion recursesubdirs createallsubdirs;
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -68,8 +84,9 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-Filename: "{tmp}\vcredist_2013_x64.exe"; Parameters: "/q"
-Filename: "{tmp}\{#MyFaroRedistExe}"; Check: WithFaro
+Filename: "{tmp}\vcredist_2013_x64.exe"; Parameters: "/install /quiet /norestart"
+Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/install /quiet /norestart"
+Filename: "{tmp}\{#MyFaroRedistExe}"; Components: faro_ls
 
 [Code]
 function InitializeUninstall(): Boolean;
@@ -78,14 +95,6 @@ begin
   ShellExec('open','taskkill.exe','/f /im {#MyAppExeName}','',SW_HIDE,ewNoWait,ErrorCode);
   ShellExec('open','tskill.exe',' {#MyAppName}','',SW_HIDE,ewNoWait,ErrorCode);
   result := True;
-end;
-
-var
-  WithFaroSupport: Boolean;
-
-function WithFaro: Boolean;
-begin
-  Result := WithFaroSupport;
 end;
 
 /////////////////////////////////////////////////////////////////////
@@ -144,17 +153,5 @@ begin
     begin
       UnInstallOldVersion();
     end;
-  end;
-end;
-
-/////////////////////////////////////////////////////////////////////
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
-  if (CurPageID = wpSelectTasks) then
-  begin
-    //'Faro support' checbkox is the 2nd one but each checkbox is nested
-    //inside a group, and each group conuts as 1!
-    WithFaroSupport := WizardForm.TasksList.Checked[3];
   end;
 end;

@@ -1,104 +1,192 @@
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
+
 #include "ccCommandLineParser.h"
 
-//Local
-#include "ccCommandLineCommands.h"
+// Local
 #include "ccCommandCrossSection.h"
+#include "ccCommandLineCommands.h"
 #include "ccCommandRaster.h"
-#include "ccPluginInterface.h"
+#include "ccConsole.h"
 
-//qCC_db
+// Ui
+#include <ui_commandLineDlg.h>
+
+// CCPluginStub
+#include <ccPluginInterface.h>
+
+// qCC_db
+#include <ccGenericMesh.h>
+#include <ccHObjectCaster.h>
 #include <ccProgressDialog.h>
 
-//qCC_io
+// qCC_io
 #include <AsciiFilter.h>
 #include <BinFilter.h>
 
-//qCC
-#include "ccConsole.h"
-
-//Qt
-#include <QMessageBox>
+// Qt
+#include <QDateTime>
 #include <QElapsedTimer>
+#include <QMessageBox>
 
-//system
+// System
 #include <unordered_set>
 
-//commands
-static const char COMMAND_HELP[]							= "HELP";
-static const char COMMAND_SILENT_MODE[]						= "SILENT";
+// commands
+constexpr char COMMAND_HELP[]        = "HELP";
+constexpr char COMMAND_SILENT_MODE[] = "SILENT";
 
 /*****************************************************/
 /*************** ccCommandLineParser *****************/
 /*****************************************************/
 
+void ccCommandLineParser::printVerbose(const QString& message) const
+{
+	ccConsole::PrintVerbose(message);
+}
+
 void ccCommandLineParser::print(const QString& message) const
 {
 	ccConsole::Print(message);
-	if (m_silentMode)
-	{
-		printf("%s\n", qPrintable(message));
-	}
+}
+
+void ccCommandLineParser::printHigh(const QString& message) const
+{
+	ccConsole::PrintHigh(message);
+}
+
+void ccCommandLineParser::printDebug(const QString& message) const
+{
+	ccConsole::PrintDebug(message);
 }
 
 void ccCommandLineParser::warning(const QString& message) const
 {
 	ccConsole::Warning(message);
-	if (m_silentMode)
-	{
-		printf("[WARNING] %s\n", qPrintable(message));
-	}
+}
+
+void ccCommandLineParser::warningDebug(const QString& message) const
+{
+	ccConsole::WarningDebug(message);
 }
 
 bool ccCommandLineParser::error(const QString& message) const
 {
 	ccConsole::Error(message);
-	if (m_silentMode)
-	{
-		printf("[ERROR] %s\n", qPrintable(message));
-	}
 
 	return false;
 }
 
-int ccCommandLineParser::Parse(int nargs, char** args, ccPluginInterfaceList& plugins)
+bool ccCommandLineParser::errorDebug(const QString& message) const
 {
-	if (!args || nargs < 2)
+	ccConsole::ErrorDebug(message);
+
+	return false;
+}
+
+int ccCommandLineParser::Parse(const QStringList& arguments, ccPluginInterfaceList& plugins)
+{
+	if (arguments.size() < 2)
 	{
 		assert(false);
 		return EXIT_SUCCESS;
 	}
 
-	//load arguments
-	QScopedPointer<ccCommandLineParser> parser(new ccCommandLineParser);
+	// load arguments
+	std::unique_ptr<ccCommandLineParser> parser(new ccCommandLineParser);
+
+	parser->registerBuiltInCommands();
+
+	ccConsole::SetRefreshCycle(200);
+
+	// 'massage' the arguments to properly handle single quotes
 	{
-		for (int i = 1; i < nargs; ++i) //'i=1' because first argument is always program executable file!
+		bool               insideSingleQuoteSection = false;
+		QString            buffer;
+		static const QChar SingleQuote{'\''};
+		for (int currentArgIndex = 1; currentArgIndex < arguments.size(); ++currentArgIndex) // start from 1, as the first argument is always the executable file
 		{
-			parser->arguments().push_back(QString(args[i]));
+			QString arg = arguments[currentArgIndex];
+			// argument starts with a single quote
+			if (!insideSingleQuoteSection && arg.startsWith(SingleQuote))
+			{
+				if (arg.endsWith(SingleQuote))
+				{
+					// nothing to do, non-truncated argument
+				}
+				else
+				{
+					// we'll collect the next pieces to get the full argument
+					insideSingleQuoteSection = true;
+					buffer                   = arg.mid(1); // remove the single quote
+				}
+			}
+			else if (insideSingleQuoteSection)
+			{
+				buffer += QChar(' ') + arg; // append the current argument to the previous one(s)
+				if (arg.endsWith(SingleQuote))
+				{
+					insideSingleQuoteSection = false;
+					arg                      = buffer.left(buffer.length() - 1); // remove the single quote
+				}
+			}
+
+			if (!insideSingleQuoteSection)
+			{
+				parser->arguments().append(arg);
+			}
+		}
+
+		if (insideSingleQuoteSection)
+		{
+			// the single quote section was not closed...
+			parser->warning("Probably malformed command (missing closing simple quote)");
+			// ...still, we'll try to proceed
+			parser->arguments().append(buffer);
 		}
 	}
-	assert(!parser->arguments().empty());
 
-	//specific command: silent mode (will prevent the console dialog from appearing!
+	// specific command: silent mode (will prevent the console dialog from appearing!
 	if (ccCommandLineInterface::IsCommand(parser->arguments().front(), COMMAND_SILENT_MODE))
 	{
 		parser->arguments().pop_front();
 		parser->toggleSilentMode(true);
 	}
 
-	QScopedPointer<QDialog> consoleDlg(0);
+	std::unique_ptr<QDialog> consoleDlg;
 	if (!parser->silentMode())
 	{
-		//show console
-		consoleDlg.reset(new QDialog);
+		// show console
+		consoleDlg = std::make_unique<QDialog>();
 		Ui_commandLineDlg commandLineDlg;
-		commandLineDlg.setupUi(consoleDlg.data());
+		commandLineDlg.setupUi(consoleDlg.get());
 		consoleDlg->show();
-		ccConsole::Init(commandLineDlg.consoleWidget, consoleDlg.data());
-		parser->fileLoadingParams().parentWidget = consoleDlg.data();
+		ccConsole::Init(commandLineDlg.consoleWidget, consoleDlg.get());
+		parser->fileLoadingParams().parentWidget = consoleDlg.get();
+		QApplication::processEvents(); // Get rid of the spinner
+	}
+	else
+	{
+		// allows ccLog/ccConsole or ccCommandLineParser (print, warning, error) to output to the console
+		ccConsole::Init(nullptr, nullptr, nullptr, true);
 	}
 
-	//load the plugins commands
-	for ( ccPluginInterface *plugin : plugins )
+	// load the plugins commands
+	for (ccPluginInterface* plugin : plugins)
 	{
 		if (!plugin)
 		{
@@ -106,21 +194,22 @@ int ccCommandLineParser::Parse(int nargs, char** args, ccPluginInterfaceList& pl
 			continue;
 		}
 
-		plugin->registerCommands(parser.data());
+		plugin->registerCommands(parser.get());
 	}
 
-	//parse input
-	int result = parser->start(consoleDlg.data());
+	// parse input
+	int result = parser->start(consoleDlg.get());
 
 	if (!parser->silentMode())
 	{
 		if (result == EXIT_SUCCESS)
-			QMessageBox::information(consoleDlg.data(), "Processed finished", "Job done");
+			QMessageBox::information(consoleDlg.get(), "Processed finished", "Job done");
 		else
-			QMessageBox::warning(consoleDlg.data(), "Processed finished", "An error occurred! Check console");
+			QMessageBox::warning(consoleDlg.get(), "Processed finished", "An error occurred! Check console");
 	}
 
-	//release the parser before the console (as its dialogs may be chidren of the console)
+	// release the parser before the console (as its dialogs may be chidren of the console)
+	parser->cleanup();
 	parser.reset();
 
 	ccConsole::ReleaseInstance();
@@ -129,77 +218,21 @@ int ccCommandLineParser::Parse(int nargs, char** args, ccPluginInterfaceList& pl
 }
 
 ccCommandLineParser::ccCommandLineParser()
-	: ccCommandLineInterface()
-	, m_cloudExportFormat(BinFilter::GetFileFilter())
-	, m_cloudExportExt(BinFilter::GetDefaultExtension())
-	, m_meshExportFormat(BinFilter::GetFileFilter())
-	, m_meshExportExt(BinFilter::GetDefaultExtension())
-	, m_orphans("orphans")
-	, m_progressDialog(0)
-	, m_parentWidget(0)
+    : ccCommandLineInterface()
+    , m_cloudExportFormat(BinFilter::GetFileFilter())
+    , m_cloudExportExt(BinFilter::GetDefaultExtension())
+    , m_meshExportFormat(BinFilter::GetFileFilter())
+    , m_meshExportExt(BinFilter::GetDefaultExtension())
+    , m_hierarchyExportFormat(BinFilter::GetFileFilter())
+    , m_hierarchyExportExt(BinFilter::GetDefaultExtension())
+    , m_orphans("orphans")
+    , m_progressDialog(nullptr)
+    , m_parentWidget(nullptr)
 {
-	registerCommand(Command::Shared(new CommandLoad));
-	registerCommand(Command::Shared(new CommandSubsample));
-	registerCommand(Command::Shared(new CommandExtractCCs));
-	registerCommand(Command::Shared(new CommandCurvature));
-	registerCommand(Command::Shared(new CommandApproxDensity));
-	registerCommand(Command::Shared(new CommandDensity));
-	registerCommand(Command::Shared(new CommandSFGradient));
-	registerCommand(Command::Shared(new CommandRoughness));
-	registerCommand(Command::Shared(new CommandApplyTransformation));
-	registerCommand(Command::Shared(new CommandDropGlobalShift));
-	registerCommand(Command::Shared(new CommandFilterBySFValue));
-	registerCommand(Command::Shared(new CommandMergeClouds));
-	registerCommand(Command::Shared(new CommandMergeMeshes));
-	registerCommand(Command::Shared(new CommandSetActiveSF));
-	registerCommand(Command::Shared(new CommandRemoveAllSF));
-	registerCommand(Command::Shared(new CommandRemoveScanGrids));
-	registerCommand(Command::Shared(new CommandMatchBBCenters));
-	registerCommand(Command::Shared(new CommandMatchBestFitPlane));
-	registerCommand(Command::Shared(new CommandOrientNormalsMST));
-	registerCommand(Command::Shared(new CommandSORFilter));
-	registerCommand(Command::Shared(new CommandSampleMesh));
-	registerCommand(Command::Shared(new CommandCrossSection));
-	registerCommand(Command::Shared(new CommandCrop));
-	registerCommand(Command::Shared(new CommandCrop2D));
-	registerCommand(Command::Shared(new CommandCoordToSF));
-	registerCommand(Command::Shared(new CommandColorBanding));
-	registerCommand(Command::Shared(new CommandC2MDist));
-	registerCommand(Command::Shared(new CommandC2CDist));
-	registerCommand(Command::Shared(new CommandStatTest));
-	registerCommand(Command::Shared(new CommandDelaunayTri));
-	registerCommand(Command::Shared(new CommandSFArithmetic));
-	registerCommand(Command::Shared(new CommandSFOperation));
-	registerCommand(Command::Shared(new CommandICP));
-	registerCommand(Command::Shared(new CommandChangeCloudOutputFormat));
-	registerCommand(Command::Shared(new CommandChangeMeshOutputFormat));
-	registerCommand(Command::Shared(new CommandChangeFBXOutputFormat));
-	registerCommand(Command::Shared(new CommandChangePLYExportFormat));
-	registerCommand(Command::Shared(new CommandForceNormalsComputation));
-	registerCommand(Command::Shared(new CommandSaveClouds));
-	registerCommand(Command::Shared(new CommandSaveMeshes));
-	registerCommand(Command::Shared(new CommandAutoSave));
-	registerCommand(Command::Shared(new CommandLogFile));
-	registerCommand(Command::Shared(new CommandClear));
-	registerCommand(Command::Shared(new CommandClearClouds));
-	registerCommand(Command::Shared(new CommandPopClouds));
-	registerCommand(Command::Shared(new CommandClearMeshes));
-	registerCommand(Command::Shared(new CommandPopMeshes));
-	registerCommand(Command::Shared(new CommandSetNoTimestamp));
-	registerCommand(Command::Shared(new CommandVolume25D));
-	registerCommand(Command::Shared(new CommandRasterize));
-	registerCommand(Command::Shared(new CommandOctreeNormal));
-	registerCommand(Command::Shared(new CommandClearNormals));
-	registerCommand(Command::Shared(new CommandComputeMeshVolume));
-	registerCommand(Command::Shared(new CommandSFColorScale));
-	registerCommand(Command::Shared(new CommandSFConvertToRGB));
 }
 
 ccCommandLineParser::~ccCommandLineParser()
 {
-	removeClouds();
-	removeMeshes();
-
 	if (m_progressDialog)
 	{
 		m_progressDialog->close();
@@ -218,7 +251,7 @@ bool ccCommandLineParser::registerCommand(Command::Shared command)
 	if (m_commands.contains(command->m_keyword))
 	{
 		assert(false);
-		warning(QString("Internal error: keyword '%' already registered (by command '%2')").arg(command->m_keyword, m_commands[command->m_keyword]->m_name));
+		warning(QString("Internal error: keyword '%1' already registered (by command '%2')").arg(command->m_keyword, m_commands[command->m_keyword]->m_name));
 		return false;
 	}
 
@@ -227,22 +260,22 @@ bool ccCommandLineParser::registerCommand(Command::Shared command)
 	return true;
 }
 
-QString ccCommandLineParser::getExportFilename(	const CLEntityDesc& entityDesc,
-												QString extension/*=QString()*/,
-												QString suffix/*=QString()*/,
-												QString* baseOutputFilename/*=0*/,
-												bool forceNoTimestamp/*=false*/) const
+QString ccCommandLineParser::getExportFilename(const CLEntityDesc& entityDesc,
+                                               QString             extension /*=QString()*/,
+                                               QString             suffix /*=QString()*/,
+                                               QString*            baseOutputFilename /*=nullptr*/,
+                                               bool                forceNoTimestamp /*=false*/) const
 {
-	//fetch the real entity
+	// fetch the real entity
 	const ccHObject* entity = entityDesc.getEntity();
 	if (!entity)
 	{
 		assert(false);
-		warning("[ExportEntity] Internal error: invalid input entity!");
-		return QString();
+		warning("[getExportFilename] Internal error: invalid input entity!");
+		return {};
 	}
 
-	//sub-item?
+	// sub-item?
 	if (entityDesc.indexInFile >= 0)
 	{
 		if (suffix.isEmpty())
@@ -265,7 +298,7 @@ QString ccCommandLineParser::getExportFilename(	const CLEntityDesc& entityDesc,
 
 	if (!extension.isEmpty())
 	{
-		outputFilename += QString(".%1").arg(extension);
+		outputFilename += '.' + extension;
 	}
 
 	if (baseOutputFilename)
@@ -275,22 +308,20 @@ QString ccCommandLineParser::getExportFilename(	const CLEntityDesc& entityDesc,
 
 	if (!entityDesc.path.isEmpty())
 	{
-		outputFilename.prepend(QString("%1/").arg(entityDesc.path));
+		outputFilename.prepend(entityDesc.path + '/');
 	}
 
 	return outputFilename;
-
 }
 
-QString ccCommandLineParser::exportEntity(	CLEntityDesc& entityDesc,
-											QString suffix/*=QString()*/,
-											QString* baseOutputFilename/*=0*/,
-											bool forceIsCloud/*=false*/,
-											bool forceNoTimestamp/*=false*/)
+QString ccCommandLineParser::exportEntity(CLEntityDesc&                         entityDesc,
+                                          const QString&                        suffix /*=QString()*/,
+                                          QString*                              baseOutputFilename /*=nullptr*/,
+                                          ccCommandLineInterface::ExportOptions options /*ExportOptiopn::NoOption*/)
 {
 	print("[SAVING]");
 
-	//fetch the real entity
+	// fetch the real entity
 	ccHObject* entity = entityDesc.getEntity();
 	if (!entity)
 	{
@@ -298,18 +329,47 @@ QString ccCommandLineParser::exportEntity(	CLEntityDesc& entityDesc,
 		return "[ExportEntity] Internal error: invalid input entity!";
 	}
 
-	//specific case: clouds
-	bool isCloud = entity->isA(CC_TYPES::POINT_CLOUD);
-	isCloud |= forceIsCloud;
-	QString extension = isCloud ? m_cloudExportExt : m_meshExportExt;
+	bool anyForced = options.testFlag(ExportOption::ForceCloud) || options.testFlag(ExportOption::ForceHierarchy) || options.testFlag(ExportOption::ForceMesh);
+	// specific case: clouds
+	bool isCloud = entity->isA(CC_TYPES::POINT_CLOUD) || entityDesc.getCLEntityType() == CL_ENTITY_TYPE::CLOUD;
 
-	QString outputFilename = getExportFilename(entityDesc, extension, suffix, baseOutputFilename, forceNoTimestamp);
-	if (outputFilename.isEmpty())
+	// specific case: mesh
+	bool isMesh = entity->isKindOf(CC_TYPES::MESH) || entityDesc.getCLEntityType() == CL_ENTITY_TYPE::MESH;
+
+	QString extension = isCloud ? m_cloudExportExt : isMesh ? m_meshExportExt
+	                                                        : m_hierarchyExportExt;
+	QString format    = isCloud ? m_cloudExportFormat : isMesh ? m_meshExportFormat
+	                                                           : m_hierarchyExportFormat;
+	if (anyForced)
 	{
-		return QString();
+		if (options.testFlag(ExportOption::ForceCloud))
+		{
+			extension = m_cloudExportExt;
+			format    = m_cloudExportFormat;
+		}
+		if (options.testFlag(ExportOption::ForceMesh))
+		{
+			extension = m_meshExportExt;
+			format    = m_meshExportFormat;
+		}
+		if (options.testFlag(ExportOption::ForceHierarchy))
+		{
+			extension = m_hierarchyExportExt;
+			format    = m_hierarchyExportFormat;
+		}
 	}
 
-	//update the entity name as well
+	QString outputFilename = getExportFilename(entityDesc,
+	                                           extension,
+	                                           suffix,
+	                                           baseOutputFilename,
+	                                           options.testFlag(ExportOption::ForceNoTimestamp));
+	if (outputFilename.isEmpty())
+	{
+		return {};
+	}
+
+	// update the entity name as well
 	{
 		QString entName = entity->getName();
 		if (entName.isEmpty())
@@ -325,26 +385,26 @@ QString ccCommandLineParser::exportEntity(	CLEntityDesc& entityDesc,
 		entity->setName(entName);
 	}
 
-	bool tempDependencyCreated = false;
-	ccGenericMesh* mesh = 0;
+	bool           tempDependencyCreated = false;
+	ccGenericMesh* mesh                  = nullptr;
 	if (entity->isKindOf(CC_TYPES::MESH) && m_meshExportFormat == BinFilter::GetFileFilter())
 	{
-		//in a BIN file we must save the vertices cloud as well if it's not a child of the mesh!
-		mesh = static_cast<ccGenericMesh*>(entity);
+		// in a BIN file we must save the vertices cloud as well if it's not a child of the mesh!
+		mesh                          = static_cast<ccGenericMesh*>(entity);
 		ccGenericPointCloud* vertices = mesh->getAssociatedCloud();
 		if (vertices && !mesh->isAncestorOf(vertices))
 		{
-			//we save the cloud first!
-			vertices->addChild(mesh, ccHObject::DP_NONE); //we simply add a fake dependency
-			entity = vertices;
+			// we save the cloud first!
+			vertices->addChild(mesh, ccHObject::DP_NONE); // we simply add a fake dependency
+			entity                = vertices;
 			tempDependencyCreated = true;
 		}
 	}
 
-	//save file
+	// save file
 	FileIOFilter::SaveParameters parameters;
 	{
-		//no dialog by default for command line mode!
+		// no dialog by default for command line mode!
 		parameters.alwaysDisplaySaveDialog = false;
 		if (!silentMode() && ccConsole::TheInstance())
 		{
@@ -356,11 +416,11 @@ QString ccCommandLineParser::exportEntity(	CLEntityDesc& entityDesc,
 	print("Output filename: " + outputFilename);
 #endif
 	CC_FILE_ERROR result = FileIOFilter::SaveToFile(entity,
-													outputFilename,
-													parameters,
-													isCloud ? m_cloudExportFormat : m_meshExportFormat);
+	                                                outputFilename,
+	                                                parameters,
+	                                                format);
 
-	//restore input state!
+	// restore input state!
 	if (tempDependencyCreated)
 	{
 		if (mesh && entity)
@@ -376,37 +436,225 @@ QString ccCommandLineParser::exportEntity(	CLEntityDesc& entityDesc,
 	return (result != CC_FERR_NO_ERROR ? QString("Failed to save result in file '%1'").arg(outputFilename) : QString());
 }
 
-void ccCommandLineParser::removeClouds(bool onlyLast/*=false*/)
+template <class EntityDesc>
+bool SelectEntities(ccCommandLineInterface::SelectEntitiesOptions options,
+                    const ccCommandLineParser&                    cmd,
+                    std::vector<EntityDesc>&                      selectedEntities,
+                    std::vector<EntityDesc>&                      unselectedEntities,
+                    QString                                       entityType)
+{
+	// early abort if no cloud found
+	if (selectedEntities.empty() && unselectedEntities.empty())
+	{
+		// do not stop execution, just warn the user and return
+		cmd.warning(QObject::tr("\tNo %1 loaded. Load some with the -O command").arg(entityType));
+		return true;
+	}
+
+	if (options.selectRegex && !options.regex.isValid())
+	{
+		return cmd.error(QObject::tr("Regex string invalid: %1").arg(options.regex.errorString()));
+	}
+
+	try
+	{
+		// store everthyng in the unselected vector
+		unselectedEntities.insert(unselectedEntities.end(), selectedEntities.begin(), selectedEntities.end());
+		selectedEntities.clear();
+
+		// sort the unselected clouds by uniqueID (so as to restore the order in which they were loaded/created)
+		std::sort(unselectedEntities.begin(), unselectedEntities.end(), [](const EntityDesc& a, const EntityDesc& b)
+		          { return (a.getEntity()->getUniqueID() < b.getEntity()->getUniqueID()); });
+
+		// put elements to the front facing vector
+		unsigned index = 0;
+		assert(!unselectedEntities.empty()); // we have tested above that neither selectedEntities and unselectedEntities are both empty
+		size_t lastIndex = unselectedEntities.size() - 1;
+		for (typename std::vector<EntityDesc>::iterator it = unselectedEntities.begin(); it != unselectedEntities.end();)
+		{
+			QString nameToValidate = QObject::tr("%1/%2").arg(it->basename).arg(it->getEntity()->getName());
+			bool    toBeSelected   = false;
+			if (!options.reverse)
+			{
+				// first {n}
+				if (options.selectFirst && index < options.firstNr)
+				{
+					toBeSelected = true;
+				}
+
+				// last {n}
+				if (options.selectLast && index > lastIndex - options.lastNr)
+				{
+					toBeSelected = true;
+				}
+			}
+			else
+			{
+				// not first {n}
+				if (options.selectFirst && index >= options.firstNr && !options.selectLast)
+				{
+					toBeSelected = true;
+				}
+
+				// not last {n}
+				if (options.selectLast && index <= lastIndex - options.lastNr && !options.selectFirst)
+				{
+					toBeSelected = true;
+				}
+
+				// not first and not last
+				if (options.selectFirst && options.selectLast && index >= options.firstNr && index <= lastIndex - options.lastNr)
+				{
+					toBeSelected = true;
+				}
+			}
+
+			// regex has higher priority than first/last overwrite
+			if (options.selectRegex)
+			{
+				if (options.regex.match(nameToValidate).hasMatch())
+				{
+					// regex matched
+					toBeSelected = !options.reverse;
+				}
+				else
+				{
+					// regex not matched
+					toBeSelected = options.reverse;
+				}
+			}
+
+			// selectAll has higher priority than first/last/regex overwrite
+			if (options.selectAll)
+			{
+				toBeSelected = !options.reverse;
+			}
+
+			if (toBeSelected)
+			{
+				cmd.print(QObject::tr("\t[*] UID: %2 name: %1").arg(nameToValidate).arg(it->getEntity()->getUniqueID()));
+				selectedEntities.push_back(*it);
+				it = unselectedEntities.erase(it);
+			}
+			else
+			{
+				cmd.print(QObject::tr("\t[ ] UID: %2 name: %1").arg(nameToValidate).arg(it->getEntity()->getUniqueID()));
+				++it;
+			}
+			index++;
+		}
+	}
+	catch (const std::bad_alloc&)
+	{
+		return cmd.error(QObject::tr("Not enough memory"));
+	}
+
+	return true;
+}
+
+bool ccCommandLineParser::selectClouds(const SelectEntitiesOptions& options)
+{
+	return SelectEntities(options, *this, m_clouds, m_unselectedClouds, "cloud");
+}
+
+bool ccCommandLineParser::selectMeshes(const SelectEntitiesOptions& options)
+{
+	return SelectEntities(options, *this, m_meshes, m_unselectedMeshes, "mesh");
+}
+
+void ccCommandLineParser::removeClouds(bool onlyLast /*=false*/)
 {
 	while (!m_clouds.empty())
 	{
-		if (m_clouds.back().pc)
-			delete m_clouds.back().pc;
+		delete m_clouds.back().pc;
 		m_clouds.pop_back();
+
 		if (onlyLast)
 			break;
 	}
 }
 
-void ccCommandLineParser::removeMeshes(bool onlyLast/*=false*/)
+void ccCommandLineParser::removeMeshes(bool onlyLast /*=false*/)
 {
 	while (!m_meshes.empty())
 	{
-		CLMeshDesc& desc = m_meshes.back();
-		if (desc.mesh)
-			delete desc.mesh;
+		delete m_meshes.back().mesh;
 		m_meshes.pop_back();
+
 		if (onlyLast)
 			break;
 	}
 }
 
-bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filter)
+//! Whether Global (coordinate) shift has already been defined
+static bool s_firstCoordinatesShiftEnabled = false;
+//! Global shift (if defined)
+static CCVector3d s_firstGlobalShift;
+//! First time the global shift is set/defined
+static bool s_globalShiftFirstTime = true;
+
+void ccCommandLineParser::setGlobalShiftOptions(const GlobalShiftOptions& globalShiftOptions)
 {
-	print(QString("Opening file: '%1'").arg(filename));
+	// default Global Shift handling parameters
+	m_loadingParameters.shiftHandlingMode       = ccGlobalShiftManager::NO_DIALOG;
+	m_loadingParameters.coordinatesShiftEnabled = false;
+	m_loadingParameters.coordinatesShift        = CCVector3d(0, 0, 0);
+
+	switch (globalShiftOptions.mode)
+	{
+	case GlobalShiftOptions::AUTO_GLOBAL_SHIFT:
+		// let CC handle the global shift automatically
+		m_loadingParameters.shiftHandlingMode = ccGlobalShiftManager::NO_DIALOG_AUTO_SHIFT;
+		break;
+
+	case GlobalShiftOptions::FIRST_GLOBAL_SHIFT:
+		// use the first encountered global shift value (if any)
+		if (s_globalShiftFirstTime)
+		{
+			ccLog::Warning("Can't reuse the first Global Shift (no global shift set yet)");
+			m_loadingParameters.shiftHandlingMode = ccGlobalShiftManager::NO_DIALOG_AUTO_SHIFT;
+		}
+		else
+		{
+			m_loadingParameters.coordinatesShiftEnabled = s_firstCoordinatesShiftEnabled;
+			m_loadingParameters.coordinatesShift        = s_firstGlobalShift;
+		}
+		break;
+
+	case GlobalShiftOptions::CUSTOM_GLOBAL_SHIFT:
+		// set the user defined shift vector as default shift information
+		m_loadingParameters.coordinatesShiftEnabled = true;
+		m_loadingParameters.coordinatesShift        = globalShiftOptions.customGlobalShift;
+		break;
+
+	default:
+		// nothing to do
+		break;
+	}
+}
+
+void ccCommandLineParser::updateInteralGlobalShift(const GlobalShiftOptions& globalShiftOptions)
+{
+	if (globalShiftOptions.mode != GlobalShiftOptions::NO_GLOBAL_SHIFT)
+	{
+		if (s_globalShiftFirstTime)
+		{
+			// remember the first Global Shift parameters used
+			s_firstCoordinatesShiftEnabled = m_loadingParameters.coordinatesShiftEnabled;
+			s_firstGlobalShift             = m_loadingParameters.coordinatesShift;
+			s_globalShiftFirstTime         = false;
+		}
+	}
+}
+
+bool ccCommandLineParser::importFile(QString filename, const GlobalShiftOptions& globalShiftOptions, FileIOFilter::Shared filter)
+{
+	printHigh(QString("Opening file: '%1'").arg(filename));
+
+	setGlobalShiftOptions(globalShiftOptions);
 
 	CC_FILE_ERROR result = CC_FERR_NO_ERROR;
-	ccHObject* db = 0;
+	ccHObject*    db     = nullptr;
 	if (filter)
 	{
 		db = FileIOFilter::LoadFromFile(filename, m_loadingParameters, filter, result);
@@ -418,15 +666,17 @@ bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filt
 
 	if (!db)
 	{
-		return false/*cmd.error(QString("Failed to open file '%1'").arg(filename))*/; //Error message already issued
+		return false /*cmd.error(QString("Failed to open file '%1'").arg(filename))*/; // Error message already issued
 	}
 
+	updateInteralGlobalShift(globalShiftOptions);
+
 	std::unordered_set<unsigned> verticesIDs;
-	//first look for meshes inside loaded DB (so that we don't consider mesh vertices as clouds!)
+	// first look for meshes inside loaded DB (so that we don't consider mesh vertices as clouds!)
 	{
 		ccHObject::Container meshes;
-		size_t count = 0;
-		//first look for all REAL meshes (so as to no consider sub-meshes)
+		size_t               count = 0;
+		// first look for all REAL meshes (so as to no consider sub-meshes)
 		if (db->filterChildren(meshes, true, CC_TYPES::MESH, true) != 0)
 		{
 			count += meshes.size();
@@ -448,13 +698,13 @@ bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filt
 				else
 				{
 					delete mesh;
-					mesh = 0;
+					mesh = nullptr;
 					assert(false);
 				}
 			}
 		}
 
-		//then look for the other meshes
+		// then look for the other meshes
 		meshes.clear();
 		if (db->filterChildren(meshes, true, CC_TYPES::MESH, false) != 0)
 		{
@@ -476,17 +726,17 @@ bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filt
 				else
 				{
 					delete mesh;
-					mesh = 0;
+					mesh = nullptr;
 					assert(false);
 				}
 			}
 		}
 	}
 
-	//now look for the remaining clouds inside loaded DB
+	// now look for the remaining clouds inside loaded DB
 	{
 		ccHObject::Container clouds;
-		db->filterChildren(clouds, false, CC_TYPES::POINT_CLOUD);
+		db->filterChildren(clouds, true, CC_TYPES::POINT_CLOUD);
 		size_t count = clouds.size();
 		for (size_t i = 0; i < count; ++i)
 		{
@@ -496,7 +746,7 @@ bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filt
 				pc->getParent()->detachChild(pc);
 			}
 
-			//if the cloud is a set of vertices, we ignore it!
+			// if the cloud is a set of vertices, we ignore it!
 			if (verticesIDs.find(pc->getUniqueID()) != verticesIDs.end())
 			{
 				m_orphans.addChild(pc);
@@ -508,18 +758,18 @@ bool ccCommandLineParser::importFile(QString filename, FileIOFilter::Shared filt
 	}
 
 	delete db;
-	db = 0;
+	db = nullptr;
 
 	return true;
 }
 
-bool ccCommandLineParser::saveClouds(QString suffix/*=QString()*/, bool allAtOnce/*=false*/, const QString* allAtOnceFileName/*=0*/)
+bool ccCommandLineParser::saveClouds(QString suffix /*=QString()*/, bool allAtOnce /*=false*/, const QString* allAtOnceFileName /*=nullptr*/)
 {
-	//all-at-once: all clouds in a single file
+	// all-at-once: all clouds in a single file
 	if (allAtOnce)
 	{
-		FileIOFilter::Shared filter = FileIOFilter::GetFilter(m_cloudExportFormat, false);
-		bool multiple = false;
+		FileIOFilter::Shared filter   = FileIOFilter::GetFilter(m_cloudExportFormat, false);
+		bool                 multiple = false;
 		if (filter)
 		{
 			bool exclusive = true;
@@ -536,31 +786,27 @@ bool ccCommandLineParser::saveClouds(QString suffix/*=QString()*/, bool allAtOnc
 				}
 			}
 
-			//save output
+			// save output
 			CLGroupDesc desc(&tempContainer, "AllClouds", m_clouds.front().path);
 			if (allAtOnceFileName)
 			{
 				CommandSave::SetFileDesc(desc, *allAtOnceFileName);
 			}
 
-			QString errorStr = exportEntity(desc, suffix, 0, true);
+			QString errorStr = exportEntity(desc, suffix, nullptr, ExportOption::ForceCloud);
 			if (!errorStr.isEmpty())
 				return error(errorStr);
-			else
-				return true;
+			return true;
 		}
-		else
-		{
-			error(QString("The currently selected ouput format for clouds (%1) doesn't handle multiple entities at once!").arg(m_cloudExportFormat));
-			//will proceed with the standard way
-		}
+		error(QString("The currently selected output format for clouds (%1) doesn't handle multiple entities at once!").arg(m_cloudExportFormat));
+		// will proceed with the standard way
 	}
 
-	//standard way: one file per cloud
+	// standard way: one file per cloud
 	{
 		for (CLCloudDesc& desc : m_clouds)
 		{
-			//save output
+			// save output
 			QString errorStr = exportEntity(desc, suffix);
 			if (!errorStr.isEmpty())
 				return error(errorStr);
@@ -570,13 +816,13 @@ bool ccCommandLineParser::saveClouds(QString suffix/*=QString()*/, bool allAtOnc
 	return true;
 }
 
-bool ccCommandLineParser::saveMeshes(QString suffix/*=QString()*/, bool allAtOnce/*=false*/, const QString* allAtOnceFileName/*=0*/)
+bool ccCommandLineParser::saveMeshes(QString suffix /*=QString()*/, bool allAtOnce /*=false*/, const QString* allAtOnceFileName /*=nullptr*/)
 {
-	//all-at-once: all meshes in a single file
+	// all-at-once: all meshes in a single file
 	if (allAtOnce)
 	{
-		FileIOFilter::Shared filter = FileIOFilter::GetFilter(m_meshExportFormat, false);
-		bool multiple = false;
+		FileIOFilter::Shared filter   = FileIOFilter::GetFilter(m_meshExportFormat, false);
+		bool                 multiple = false;
 		if (filter)
 		{
 			bool exclusive = true;
@@ -587,45 +833,145 @@ bool ccCommandLineParser::saveMeshes(QString suffix/*=QString()*/, bool allAtOnc
 		{
 			ccHObject tempContainer("Meshes");
 			{
-				for (size_t i = 0; i < m_meshes.size(); ++i)
-					tempContainer.addChild(m_meshes[i].getEntity(), ccHObject::DP_NONE);
+				for (auto& mesh : m_meshes)
+				{
+					tempContainer.addChild(mesh.getEntity(), ccHObject::DP_NONE);
+				}
 			}
 
-			//save output
+			// save output
 			CLGroupDesc desc(&tempContainer, "AllMeshes", m_meshes.front().path);
 			if (allAtOnceFileName)
 			{
 				CommandSave::SetFileDesc(desc, *allAtOnceFileName);
 			}
 
-			QString errorStr = exportEntity(desc, suffix, 0, false);
+			QString errorStr = exportEntity(desc, suffix, nullptr, ExportOption::ForceMesh);
 			if (!errorStr.isEmpty())
 				return error(errorStr);
-			else
-				return true;
+			return true;
 		}
-		else
-		{
-			error(QString("The currently selected ouput format for meshes (%1) doesn't handle multiple entities at once!").arg(m_meshExportFormat));
-			//will proceed with the standard way
-		}
+		error(QString("The currently selected output format for meshes (%1) doesn't handle multiple entities at once!").arg(m_meshExportFormat));
+		// will proceed with the standard way
 	}
 
-	//standard way: one file per mesh
+	// standard way: one file per mesh
+	for (auto& mesh : m_meshes)
 	{
-		for (size_t i = 0; i < m_meshes.size(); ++i)
-		{
-			//save output
-			QString errorStr = exportEntity(m_meshes[i], suffix);
-			if (!errorStr.isEmpty())
-				return error(errorStr);
-		}
+		// save output
+		QString errorStr = exportEntity(mesh, suffix);
+		if (!errorStr.isEmpty())
+			return error(errorStr);
 	}
 
 	return true;
 }
 
-int ccCommandLineParser::start(QDialog* parent/*=0*/)
+void ccCommandLineParser::registerBuiltInCommands()
+{
+	registerCommand(Command::Shared(new CommandDebugCmdLine));
+	registerCommand(Command::Shared(new CommandLoad));
+	registerCommand(Command::Shared(new CommandLoadCommandFile));
+	registerCommand(Command::Shared(new CommandSubsample));
+	registerCommand(Command::Shared(new CommandExtractCCs));
+	registerCommand(Command::Shared(new CommandCurvature));
+	registerCommand(Command::Shared(new CommandApproxDensity));
+	registerCommand(Command::Shared(new CommandDensity));
+	registerCommand(Command::Shared(new CommandSFGradient));
+	registerCommand(Command::Shared(new CommandRoughness));
+	registerCommand(Command::Shared(new CommandApplyTransformation));
+	registerCommand(Command::Shared(new CommandDropGlobalShift));
+	registerCommand(Command::Shared(new CommandFilterBySFValue));
+	registerCommand(Command::Shared(new CommandMergeClouds));
+	registerCommand(Command::Shared(new CommandMergeMeshes));
+	registerCommand(Command::Shared(new CommandSetActiveSF));
+	registerCommand(Command::Shared(new CommandSetGlobalShift));
+	registerCommand(Command::Shared(new CommandRemoveAllSFs));
+	registerCommand(Command::Shared(new CommandRemoveSF));
+	registerCommand(Command::Shared(new CommandRemoveRGB));
+	registerCommand(Command::Shared(new CommandRemoveNormals));
+	registerCommand(Command::Shared(new CommandRemoveScanGrids));
+	registerCommand(Command::Shared(new CommandRemoveSensors));
+	registerCommand(Command::Shared(new CommandMatchBBCenters));
+	registerCommand(Command::Shared(new CommandMatchScales));
+	registerCommand(Command::Shared(new CommandMatchBestFitPlane));
+	registerCommand(Command::Shared(new CommandOrientNormalsMST));
+	registerCommand(Command::Shared(new CommandSORFilter));
+	registerCommand(Command::Shared(new CommandNoiseFilter));
+	registerCommand(Command::Shared(new CommandRemoveDuplicatePoints));
+	registerCommand(Command::Shared(new CommandSampleMesh));
+	registerCommand(Command::Shared(new CommandCompressFWF));
+	registerCommand(Command::Shared(new CommandExtractVertices));
+	registerCommand(Command::Shared(new CommandCrossSection));
+	registerCommand(Command::Shared(new CommandCrop));
+	registerCommand(Command::Shared(new CommandCrop2D));
+	registerCommand(Command::Shared(new CommandCoordToSF));
+	registerCommand(Command::Shared(new CommandSFToCoord));
+	registerCommand(Command::Shared(new CommandNormToSF));
+	registerCommand(Command::Shared(new CommandSFToNorm));
+	registerCommand(Command::Shared(new CommandColorBanding));
+	registerCommand(Command::Shared(new CommandColorLevels));
+	registerCommand(Command::Shared(new CommandC2MDist));
+	registerCommand(Command::Shared(new CommandC2CDist));
+	registerCommand(Command::Shared(new CommandCPS));
+	registerCommand(Command::Shared(new CommandStatTest));
+	registerCommand(Command::Shared(new CommandStatFit));
+	registerCommand(Command::Shared(new CommandDelaunayTri));
+	registerCommand(Command::Shared(new CommandSFArithmetic));
+	registerCommand(Command::Shared(new CommandSFOperation));
+	registerCommand(Command::Shared(new CommandSFOperationSF));
+	registerCommand(Command::Shared(new CommandSFInterpolation));
+	registerCommand(Command::Shared(new CommandColorInterpolation));
+	registerCommand(Command::Shared(new CommandFilter));
+	registerCommand(Command::Shared(new CommandRenameEntities));
+	registerCommand(Command::Shared(new CommandSFRename));
+	registerCommand(Command::Shared(new CommandSFAddConst));
+	registerCommand(Command::Shared(new CommandSFAddId));
+	registerCommand(Command::Shared(new CommandICP));
+	registerCommand(Command::Shared(new CommandChangeCloudOutputFormat));
+	registerCommand(Command::Shared(new CommandChangeMeshOutputFormat));
+	registerCommand(Command::Shared(new CommandChangeHierarchyOutputFormat));
+	registerCommand(Command::Shared(new CommandChangePLYExportFormat));
+	registerCommand(Command::Shared(new CommandPLYNoSFPrefix));
+	registerCommand(Command::Shared(new CommandForceNormalsComputation));
+	registerCommand(Command::Shared(new CommandSaveClouds));
+	registerCommand(Command::Shared(new CommandSaveMeshes));
+	registerCommand(Command::Shared(new CommandAutoSave));
+	registerCommand(Command::Shared(new CommandLogFile));
+	registerCommand(Command::Shared(new CommandSelectEntities));
+	registerCommand(Command::Shared(new CommandClear));
+	registerCommand(Command::Shared(new CommandClearClouds));
+	registerCommand(Command::Shared(new CommandPopClouds));
+	registerCommand(Command::Shared(new CommandClearMeshes));
+	registerCommand(Command::Shared(new CommandPopMeshes));
+	registerCommand(Command::Shared(new CommandSetNoTimestamp));
+	registerCommand(Command::Shared(new CommandVolume25D));
+	registerCommand(Command::Shared(new CommandRasterize));
+	registerCommand(Command::Shared(new CommandOctreeNormal));
+	registerCommand(Command::Shared(new CommandConvertNormalsToDipAndDipDir));
+	registerCommand(Command::Shared(new CommandConvertNormalsToSFs));
+	registerCommand(Command::Shared(new CommandConvertNormalsToHSV));
+	registerCommand(Command::Shared(new CommandClearNormals));
+	registerCommand(Command::Shared(new CommandInvertNormal));
+	registerCommand(Command::Shared(new CommandComputeMeshVolume));
+	registerCommand(Command::Shared(new CommandSFColorScale));
+	registerCommand(Command::Shared(new CommandSFConvertToRGB));
+	registerCommand(Command::Shared(new CommandMoment));
+	registerCommand(Command::Shared(new CommandFeature));
+	registerCommand(Command::Shared(new CommandRGBConvertToSF));
+	registerCommand(Command::Shared(new CommandFlipTriangles));
+	registerCommand(Command::Shared(new CommandSetVerbosity));
+	registerCommand(Command::Shared(new CommandComputeDistancesFromSensor));
+	registerCommand(Command::Shared(new CommandComputeScatteringAngles));
+}
+
+void ccCommandLineParser::cleanup()
+{
+	removeClouds();
+	removeMeshes();
+}
+
+int ccCommandLineParser::start(QDialog* parent /*=nullptr*/)
 {
 	if (m_arguments.empty())
 	{
@@ -634,13 +980,13 @@ int ccCommandLineParser::start(QDialog* parent/*=0*/)
 	}
 
 	m_parentWidget = parent;
-	//if (!m_silentMode)
+	// if (!m_silentMode)
 	//{
 	//	m_progressDialog = new ccProgressDialog(false, parent);
 	//	//m_progressDialog->setAttribute(Qt::WA_DeleteOnClose);
 	//	m_progressDialog->setAutoClose(false);
 	//	m_progressDialog->hide();
-	//}
+	// }
 
 	QElapsedTimer eTimer;
 	eTimer.start();
@@ -648,6 +994,7 @@ int ccCommandLineParser::start(QDialog* parent/*=0*/)
 	bool success = true;
 	while (success && !m_arguments.empty())
 	{
+		QApplication::processEvents(); // Without this the console is just a spinner until the end of all processing
 		QString argument = m_arguments.takeFirst();
 
 		if (!argument.startsWith("-"))
@@ -661,9 +1008,14 @@ int ccCommandLineParser::start(QDialog* parent/*=0*/)
 		if (m_commands.contains(keyword))
 		{
 			assert(m_commands[keyword]);
+			QElapsedTimer eTimerSubProcess;
+			eTimerSubProcess.start();
+			QString processName = m_commands[keyword]->m_name.toUpper();
+			printHigh(QString("[%1] Command detected").arg(processName));
 			success = m_commands[keyword]->process(*this);
+			printHigh(QString("[%2] finished in %1 s.").arg(eTimerSubProcess.elapsed() / 1.0e3, 0, 'f', 2).arg(processName));
 		}
-		//silent mode (i.e. no console)
+		// silent mode (i.e. no console)
 		else if (keyword == COMMAND_SILENT_MODE)
 		{
 			warning(QString("Misplaced command: '%1' (must be first)").arg(COMMAND_SILENT_MODE));

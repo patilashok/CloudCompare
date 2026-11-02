@@ -1,41 +1,38 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccOrthoSectionGenerationDlg.h"
 
-//system
-#include <cmath>
-
-ccOrthoSectionGenerationDlg::ccOrthoSectionGenerationDlg(QWidget* parent/*=0*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::OrthoSectionGenerationDlg()
-	, m_pathLength(0)
+ccOrthoSectionGenerationDlg::ccOrthoSectionGenerationDlg(QWidget* parent /*=nullptr*/)
+    : QDialog(parent, Qt::Tool)
+    , Ui::OrthoSectionGenerationDlg()
+    , m_pathLength(0)
 {
 	setupUi(this);
 
-	connect(stepDoubleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onStepChanged(double)));
+	connect(stepDoubleSpinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, &ccOrthoSectionGenerationDlg::onStepChanged);
 }
 
 void ccOrthoSectionGenerationDlg::setPathLength(double l)
 {
 	m_pathLength = l;
 	pathLengthLineEdit->setText(QString::number(l));
-	stepDoubleSpinBox->setValue(l/9);
-	widthDoubleSpinBox->setValue(l/5);
+	stepDoubleSpinBox->setValue(l / 9);
+	widthDoubleSpinBox->setValue(l / 5);
 }
 
 void ccOrthoSectionGenerationDlg::setAutoSaveAndRemove(bool state)
@@ -73,6 +70,6 @@ void ccOrthoSectionGenerationDlg::onStepChanged(double step)
 	if (step < 0)
 		return;
 
-	unsigned count = step < 1.0e-6 ? 1 : 1+static_cast<unsigned>(std::floor(m_pathLength / step));
+	unsigned count = step < 1.0e-6 ? 1 : 1 + static_cast<unsigned>(m_pathLength / step); // static_cast is equivalent to floor if value >= 0
 	sectionCountLineEdit->setText(QString::number(count));
 }

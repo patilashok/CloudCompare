@@ -1,96 +1,107 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccSelectChildrenDlg.h"
 
-static QString s_lastName;
-static bool s_lastNameState = false;
-static CC_CLASS_ENUM s_lastType = CC_TYPES::POINT_CLOUD;
-static bool s_lastTypeState = true;
-static bool s_lastTypeStrictState = true;
-static bool s_lastUseRegex = true;
+// Ui
+#include <ui_selectChildrenDlg.h>
 
-ccSelectChildrenDlg::ccSelectChildrenDlg(QWidget* parent/*=0*/)
-	: QDialog(parent, Qt::Tool)
-	, Ui::SelectChildrenDialog()
+static QString       s_lastName;
+static bool          s_lastNameState       = false;
+static CC_CLASS_ENUM s_lastType            = CC_TYPES::POINT_CLOUD;
+static bool          s_lastTypeState       = true;
+static bool          s_lastTypeStrictState = true;
+static bool          s_lastUseRegex        = true;
+
+ccSelectChildrenDlg::ccSelectChildrenDlg(QWidget* parent /*=nullptr*/)
+    : QDialog(parent, Qt::Tool)
+    , m_ui(std::make_unique<Ui::SelectChildrenDialog>())
 {
-	setupUi(this);
+	m_ui->setupUi(this);
 
-	typeCheckBox->setChecked(s_lastTypeState);
-	typeStrictCheckBox->setChecked(s_lastTypeStrictState);
-	nameCheckBox->setChecked(s_lastNameState);
-	nameLineEdit->setText(s_lastName);
-	checkBoxRegex->setChecked(s_lastUseRegex);
+	m_ui->typeCheckBox->setChecked(s_lastTypeState);
+	m_ui->typeStrictCheckBox->setChecked(s_lastTypeStrictState);
+	m_ui->nameCheckBox->setChecked(s_lastNameState);
+	m_ui->nameLineEdit->setText(s_lastName);
+	m_ui->checkBoxRegex->setChecked(s_lastUseRegex);
 
-	connect(buttonBox, &QDialogButtonBox::accepted, this, &ccSelectChildrenDlg::onAccept);
+	connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &ccSelectChildrenDlg::onAccept);
 }
+
+ccSelectChildrenDlg::~ccSelectChildrenDlg() = default;
 
 void ccSelectChildrenDlg::addType(QString typeName, CC_CLASS_ENUM type)
 {
-	typeComboBox->addItem(typeName,QVariant::fromValue<qint64>(type));
+	m_ui->typeComboBox->addItem(typeName, QVariant::fromValue<qint64>(type));
 
-	//auto select last selected type
+	// auto select last selected type
 	if (type == s_lastType)
-		typeComboBox->setCurrentIndex(typeComboBox->count()-1);
+	{
+		m_ui->typeComboBox->setCurrentIndex(m_ui->typeComboBox->count() - 1);
+	}
 }
 
 void ccSelectChildrenDlg::onAccept()
 {
-	s_lastNameState = nameCheckBox->isChecked();
-	s_lastName = nameLineEdit->text();
-	s_lastTypeState = typeCheckBox->isChecked();
-	s_lastTypeStrictState = typeCheckBox->isChecked();
-	s_lastType = getSelectedType();
-	s_lastUseRegex = getNameIsRegex();
+	s_lastNameState       = m_ui->nameCheckBox->isChecked();
+	s_lastName            = m_ui->nameLineEdit->text();
+	s_lastTypeState       = m_ui->typeCheckBox->isChecked();
+	s_lastTypeStrictState = m_ui->typeCheckBox->isChecked();
+	s_lastType            = getSelectedType();
+	s_lastUseRegex        = getNameIsRegex();
 }
 
 CC_CLASS_ENUM ccSelectChildrenDlg::getSelectedType()
 {
-	if (!typeCheckBox->isChecked())
+	if (!m_ui->typeCheckBox->isChecked())
+	{
 		return CC_TYPES::HIERARCHY_OBJECT;
+	}
 
-	int currentIndex = typeComboBox->currentIndex();
-	return static_cast<CC_CLASS_ENUM>(typeComboBox->itemData(currentIndex).value<qint64>());
+	int currentIndex = m_ui->typeComboBox->currentIndex();
+	return static_cast<CC_CLASS_ENUM>(m_ui->typeComboBox->itemData(currentIndex).value<qint64>());
 }
 
 QString ccSelectChildrenDlg::getSelectedName()
 {
-	if (!nameCheckBox->isChecked())
-		return QString();
+	if (!m_ui->nameCheckBox->isChecked())
+	{
+		return {};
+	}
 
-	return nameLineEdit->text();
+	return m_ui->nameLineEdit->text();
 }
 
 bool ccSelectChildrenDlg::getStrictMatchState() const
 {
-	return typeStrictCheckBox->isChecked();
+	return m_ui->typeStrictCheckBox->isChecked();
 }
 
 bool ccSelectChildrenDlg::getTypeIsUsed() const
 {
-	return typeCheckBox->isChecked();
+	return m_ui->typeCheckBox->isChecked();
 }
 
 bool ccSelectChildrenDlg::getNameIsRegex() const
 {
-	return checkBoxRegex->isChecked();
+	return m_ui->checkBoxRegex->isChecked();
 }
 
 bool ccSelectChildrenDlg::getNameMatchIsUsed() const
 {
-	return nameCheckBox->isChecked();
+	return m_ui->nameCheckBox->isChecked();
 }

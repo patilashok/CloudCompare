@@ -1,69 +1,73 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#ifndef CC_TRACE_POLY_LINE_TOOL_HEADER
-#define CC_TRACE_POLY_LINE_TOOL_HEADER
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-//Local
-#include "ccOverlayDialog.h"
-#include "ccPickingListener.h"
+// CCPluginAPI
+#include <ccOverlayDialog.h>
+#include <ccPickingListener.h>
 
-//qCC_db
-#include <ccHObject.h>
+// qCC_db
 #include <ccGenericGLDisplay.h>
 
-//system
-#include <set>
-
-//GUI
-#include <ui_tracePolylineDlg.h>
+// System
+#include <vector>
 
 class ccPolyline;
 class ccPointCloud;
-class ccGLWindow;
+class ccGLWindowInterface;
 class ccPickingHub;
 
+namespace Ui
+{
+	class TracePolyLineDlg;
+}
+
 //! Graphical Polyline Tracing tool
-class ccTracePolylineTool : public ccOverlayDialog, public ccPickingListener, public Ui::TracePolyLineDlg
+class ccTracePolylineTool : public ccOverlayDialog
+    , public ccPickingListener
 {
 	Q_OBJECT
 
-public:
+  public:
 	//! Default constructor
 	explicit ccTracePolylineTool(ccPickingHub* pickingHub, QWidget* parent);
 	//! Destructor
-	virtual ~ccTracePolylineTool();
+	~ccTracePolylineTool() override;
 
-	//inherited from ccOverlayDialog
-	virtual bool linkWith(ccGLWindow* win) override;
-	virtual bool start() override;
-	virtual void stop(bool accepted) override;
+	// inherited from ccOverlayDialog
+	bool linkWith(ccGLWindowInterface* win) override;
+	bool start() override;
+	void stop(bool accepted) override;
 
-protected slots:
+  protected:
+	void        apply();
+	void        cancel();
+	void        exportLine();
+	inline void continueEdition()
+	{
+		restart(false);
+	}
+	inline void resetLine()
+	{
+		restart(true);
+	}
 
-	void apply();
-	void cancel();
-	void exportLine();
-	inline void continueEdition()  { restart(false); }
-	inline void resetLine() { restart(true); }
-
-	//void handlePickedItem(ccHObject*, unsigned, int, int, const CCVector3&);
-	//void addPointToPolyline(int x, int y);
-	void closePolyLine(int x = 0, int y = 0); //arguments for compatibility with ccGlWindow::rightButtonClicked signal
+	void closePolyLine(int x = 0, int y = 0); // arguments for compatibility with ccGlWindow::rightButtonClicked signal
 	void updatePolyLineTip(int x, int y, Qt::MouseButtons buttons);
 
 	void onWidthSizeChanged(int);
@@ -72,20 +76,19 @@ protected slots:
 	void onShortcutTriggered(int);
 
 	//! Inherited from ccPickingListener
-	virtual void onItemPicked(const PickedItem& pi) override;
+	void onItemPicked(const PickedItem& pi) override;
 
-protected:
-
+  protected:
 	//! Restarts the edition mode
 	void restart(bool reset);
 
 	//! Viewport parameters (used for picking)
 	struct SegmentGLParams
 	{
-		SegmentGLParams() {}
+		SegmentGLParams() = default;
 		SegmentGLParams(ccGenericGLDisplay* display, int x, int y);
 		ccGLCameraParameters params;
-		CCVector2d clickPos;
+		CCVector2d           clickPos;
 	};
 
 	//! Oversamples the active 3D polyline
@@ -110,6 +113,5 @@ protected:
 	//! Picking hub
 	ccPickingHub* m_pickingHub;
 
+	std::unique_ptr<Ui::TracePolyLineDlg> m_ui;
 };
-
-#endif //CC_TRACE_POLY_LINE_TOOL_HEADER

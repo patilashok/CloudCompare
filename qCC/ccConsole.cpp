@@ -1,41 +1,42 @@
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
 #include "ccConsole.h"
 
-//Local
+// Local
 #include "mainwindow.h"
-#include "ccPersistentSettings.h"
 
-//qCC_db
-#include <ccSingleton.h>
+// CCPluginAPI
+#include <ccPersistentSettings.h>
 
-//Qt
-#include <QListWidget>
-#include <QMessageBox>
+// Qt
 #include <QApplication>
+#include <QClipboard>
 #include <QColor>
-#include <QTime>
-#include <QThread>
-#include <QTextStream>
+#include <QKeyEvent>
+#include <QMessageBox>
 #include <QSettings>
+#include <QTextStream>
+#include <QThread>
+#include <QTime>
 
-//system
-#include <assert.h>
+// System
+#include <cassert>
+
 #ifdef QT_DEBUG
 #include <iostream>
 #endif
@@ -44,47 +45,105 @@
  *** Globals ***
  ***************/
 
-//unique console instance
-static ccSingleton<ccConsole> s_console;
+// unique console instance
+static std::unique_ptr<ccConsole> s_console;
 
 bool ccConsole::s_showQtMessagesInConsole = false;
+bool ccConsole::s_redirectToStdOut        = false;
 
-ccConsole* ccConsole::TheInstance(bool autoInit/*=true*/)
+/*** ccCustomQListWidget ***/
+
+ccCustomQListWidget::ccCustomQListWidget(QWidget* parent)
+    : QListWidget(parent)
 {
-	if (!s_console.instance && autoInit)
-	{
-		s_console.instance = new ccConsole;
-		ccLog::RegisterInstance(s_console.instance);
-	}
-
-	return s_console.instance;
 }
 
-void ccConsole::ReleaseInstance(bool flush/*=true*/)
+void ccCustomQListWidget::keyPressEvent(QKeyEvent* event)
 {
-	if (flush && s_console.instance)
+	if (event->matches(QKeySequence::Copy))
 	{
-		//DGM: just in case some messages are still in the queue
-		s_console.instance->refresh();
+		int         itemsCount = count();
+		QStringList strings;
+		for (int i = 0; i < itemsCount; ++i)
+		{
+			if (item(i)->isSelected())
+			{
+				strings << item(i)->text();
+			}
+		}
+
+		QApplication::clipboard()->setText(strings.join("\n"));
 	}
-	ccLog::RegisterInstance(0);
-	s_console.release();
+	else
+	{
+		QListWidget::keyPressEvent(event);
+	}
+}
+
+/*** ccConsole ***/
+
+void ccConsole::setRefreshCycle(int cycle_ms)
+{
+	if (cycle_ms != m_timer.interval())
+	{
+		m_timer.stop();
+		m_timer.setInterval(cycle_ms);
+		m_timer.start();
+	}
+}
+
+void ccConsole::SetRefreshCycle(int cycle_ms /*=1000*/)
+{
+	if (cycle_ms <= 0)
+	{
+		// invalid
+		Warning("Invalid refresh cycle (can't be zero of negative)");
+		return;
+	}
+
+	if (s_console)
+	{
+		s_console->setRefreshCycle(cycle_ms);
+	}
+}
+
+ccConsole* ccConsole::TheInstance(bool autoInit /*=true*/)
+{
+	if (!s_console && autoInit)
+	{
+		s_console.reset(new ccConsole());
+		ccLog::RegisterInstance(s_console.get());
+	}
+
+	return s_console.get();
+}
+
+void ccConsole::ReleaseInstance(bool flush /*=true*/)
+{
+	if (flush && s_console)
+	{
+		// DGM: just in case some messages are still in the queue
+		s_console->refresh();
+	}
+	ccLog::RegisterInstance(nullptr);
+	s_console.reset();
 }
 
 ccConsole::ccConsole()
-	: m_textDisplay(0)
-	, m_parentWidget(0)
-	, m_parentWindow(0)
-	, m_logStream(0)
+    : m_textDisplay(nullptr)
+    , m_parentWidget(nullptr)
+    , m_parentWindow(nullptr)
+    , m_logStream(nullptr)
 {
+	connect(&m_timer, &QTimer::timeout, this, &ccConsole::refresh);
 }
 
 ccConsole::~ccConsole()
 {
-	setLogFile(QString()); //to close/delete any active stream
+	setLogFile(QString()); // to close/delete any active stream
 }
 
-void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+static void MyMessageOutput(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
 #ifndef QT_DEBUG
 	if (!ccConsole::QtMessagesEnabled())
@@ -100,7 +159,7 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 
 	QString message = QString("[%1] ").arg(context.function) + msg; // QString("%1 (%1:%1, %1)").arg(msg).arg(context.file).arg(context.line).arg(context.function);
 
-	//in this function, you can write the message to any stream!
+	// in this function, you can write the message to any stream!
 	switch (type)
 	{
 	case QtDebugMsg:
@@ -118,33 +177,29 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
 		message.prepend("[Qt FATAL] ");
 		ccLog::Warning(message);
 		break;
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 5, 0)) //DGM: QtInfoMsg is only defined since version 5.5
 	case QtInfoMsg:
 		message.prepend("[Qt INFO] ");
 		ccLog::Warning(message);
 		break;
-#endif
 	}
-	
+
 #ifdef QT_DEBUG
 	// Also send the message to the console so we can look at the output when CC has quit
 	//	(in Qt Creator's Application Output for example)
 	switch (type)
 	{
-		case QtDebugMsg:
-		case QtWarningMsg:
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 5, 0))
-		case QtInfoMsg:
-#endif
-			std::cout << message.toStdString() << std::endl;
-			break;
-			
-		case QtCriticalMsg:
-		case QtFatalMsg:
-			std::cerr << message.toStdString() << std::endl;
-			break;
+	case QtDebugMsg:
+	case QtWarningMsg:
+	case QtInfoMsg:
+		std::cout << message.toStdString() << std::endl;
+		break;
+
+	case QtCriticalMsg:
+	case QtFatalMsg:
+		std::cerr << message.toStdString() << std::endl;
+		break;
 	}
-	
+
 #endif
 }
 
@@ -152,220 +207,175 @@ void ccConsole::EnableQtMessages(bool state)
 {
 	s_showQtMessagesInConsole = state;
 
-	//save to persistent settings
+	// save to persistent settings
 	QSettings settings;
 	settings.beginGroup(ccPS::Console());
 	settings.setValue("QtMessagesEnabled", s_showQtMessagesInConsole);
 	settings.endGroup();
 }
 
-void ccConsole::Init(	QListWidget* textDisplay/*=0*/,
-						QWidget* parentWidget/*=0*/,
-						MainWindow* parentWindow/*=0*/)
+void ccConsole::Init(QListWidget* textDisplay /*=nullptr*/,
+                     QWidget*     parentWidget /*=nullptr*/,
+                     MainWindow*  parentWindow /*=nullptr*/,
+                     bool         redirectToStdOut /*=false*/)
 {
-	//should be called only once!
-	if (s_console.instance)
+	// should be called only once!
+	if (s_console)
 	{
 		assert(false);
 		return;
 	}
-	
-	s_console.instance = new ccConsole;
-	s_console.instance->m_textDisplay = textDisplay;
-	s_console.instance->m_parentWidget = parentWidget;
-	s_console.instance->m_parentWindow = parentWindow;
 
-	//auto-start
+	s_console.reset(new ccConsole());
+	s_console->m_textDisplay  = textDisplay;
+	s_console->m_parentWidget = parentWidget;
+	s_console->m_parentWindow = parentWindow;
+	s_redirectToStdOut        = redirectToStdOut;
+
+	if (s_redirectToStdOut)
+	{
+		// make the system console/terminal more responsive by removing any buffering
+		setbuf(stdout, NULL);
+	}
+
+	// auto-start
 	if (textDisplay)
 	{
-		//load from persistent settings
+		// load from persistent settings
 		QSettings settings;
 		settings.beginGroup(ccPS::Console());
 		s_showQtMessagesInConsole = settings.value("QtMessagesEnabled", false).toBool();
 		settings.endGroup();
 
-		//install : set the callback for Qt messages
-		qInstallMessageHandler(myMessageOutput);
-
-		s_console.instance->setAutoRefresh(true);
+		// install : set the callback for Qt messages
+		qInstallMessageHandler(MyMessageOutput);
 	}
 
-	ccLog::RegisterInstance(s_console.instance);
-}
+	s_console->m_timer.start(500);
 
-void ccConsole::setAutoRefresh(bool state)
-{
-	if (state)
-	{
-		connect(&m_timer, &QTimer::timeout, this, &ccConsole::refresh);
-		m_timer.start(1000);
-	}
-	else
-	{
-		m_timer.stop();
-		disconnect(&m_timer, &QTimer::timeout, this, &ccConsole::refresh);
-	}
+	ccLog::RegisterInstance(s_console.get());
 }
 
 void ccConsole::refresh()
 {
+	assert(qApp && QThread::currentThread() == qApp->thread());
+
+	// do not block the logging thread for too long!
 	m_mutex.lock();
-	
-	if ((m_textDisplay || m_logStream) && !m_queue.isEmpty())
+	if (m_queue.empty())
 	{
-		for (QVector<ConsoleItemType>::const_iterator it=m_queue.constBegin(); it!=m_queue.constEnd(); ++it)
-		{
-			 //it->second = message severity
-			bool debugMessage = (it->second & LOG_DEBUG);
-#ifndef QT_DEBUG
-			//skip debug message in release mode
-			if (debugMessage)
-				continue;
-#endif
-
-			//destination: log file
-			if (m_logStream)
-			{
-				*m_logStream << it->first << endl;
-			}
-
-			//destination: console widget
-			if (m_textDisplay)
-			{
-				//it->first = message text
-				QListWidgetItem* item = new QListWidgetItem(it->first);
-
-				//set color based on the message severity
-				//Error
-				if (it->second & LOG_ERROR)
-				{
-					item->setForeground(Qt::red);
-				}
-				//Warning
-				else if (it->second & LOG_WARNING)
-				{
-					item->setForeground(Qt::darkRed);
-					//we also force the console visibility if a warning message arrives!
-					if (m_parentWindow)
-						m_parentWindow->forceConsoleDisplay();
-				}
-				//Standard
-				else
-				{
-#ifdef QT_DEBUG
-					if (debugMessage)
-						item->setForeground(Qt::blue);
-					else
-#endif
-						item->setForeground(Qt::black);
-				}
-
-				m_textDisplay->addItem(item);
-			}
-		}
-
-		if (m_logStream)
-			m_logFile.flush();
-
-		if (m_textDisplay)
-			m_textDisplay->scrollToBottom();
-	}
-
-	m_queue.clear();
-
-	m_mutex.unlock();
-}
-
-void ccConsole::logMessage(const QString& message, int level)
-{
-#ifndef QT_DEBUG
-	//skip debug messages in release mode
-	if (level & LOG_DEBUG)
-	{
+		m_mutex.unlock();
 		return;
 	}
-#endif
+	QMap<qint64, Message> previousQueue;
+	previousQueue.swap(m_queue);
+	m_mutex.unlock();
 
-	QString formatedMessage = QStringLiteral("[") + QTime::currentTime().toString() + QStringLiteral("] ") + message;
-
-	if (m_textDisplay || m_logStream)
+	for (const auto& message : previousQueue)
 	{
-		m_mutex.lock();
-		m_queue.push_back(ConsoleItemType(formatedMessage,level));
-		m_mutex.unlock();
-	}
+		QString formatedMessage = QStringLiteral("[") + m_startTime.addMSecs(static_cast<int>(message.time_ns / 1000000)).toString() + QStringLiteral("] ") + message.text;
+
+		if (s_redirectToStdOut)
+		{
+			printf("%s\n", qUtf8Printable(formatedMessage));
+		}
+
+		// destination: log file
+		if (m_logStream)
+		{
+			*m_logStream << formatedMessage << Qt::endl;
+		}
+
+		// destination: console widget
+		if (m_textDisplay)
+		{
+			// messagePair.first = message text
+			QListWidgetItem* item = new QListWidgetItem(formatedMessage);
+
+			// set color based on the message severity
+			if ((message.level & LOG_ERROR) == LOG_ERROR) // Error
+			{
+				item->setForeground(Qt::red);
+			}
+			else if ((message.level & LOG_WARNING) == LOG_WARNING) // Warning
+			{
+				item->setForeground(QColor(230, 150, 0)); // orange
+				// we also force the console visibility if a warning message arrives!
+				if (m_parentWindow)
+				{
+					m_parentWindow->forceConsoleDisplay();
+				}
+			}
 #ifdef QT_DEBUG
-	else
-	{
-		//Error
-		if (level & LOG_ERROR)
-		{
-			if (level & LOG_DEBUG)
-				printf("ERR-DBG: ");
-			else
-				printf("ERR: ");
-		}
-		//Warning
-		else if (level & LOG_WARNING)
-		{
-			if (level & LOG_DEBUG)
-				printf("WARN-DBG: ");
-			else
-				printf("WARN: ");
-		}
-		//Standard
-		else
-		{
-			if (level & LOG_DEBUG)
-				printf("MSG-DBG: ");
-			else
-				printf("MSG: ");
-		}
-		printf(" %s\n",qPrintable(formatedMessage));
-	}
+			else if (message.level & DEBUG_FLAG) // Debug
+			{
+				item->setForeground(Qt::magenta);
+			}
 #endif
 
-	//we display the error messages in a popup dialog
-	if (	(level & LOG_ERROR)
-		&&	qApp
-		&&	m_parentWidget
-		&&	QThread::currentThread() == qApp->thread()
-		)
+			m_textDisplay->addItem(item);
+		}
+	}
+
+	if (m_logStream)
 	{
-		QMessageBox::warning(m_parentWidget, "Error", message);
+		m_logFile.flush();
+	}
+
+	if (m_textDisplay)
+	{
+		m_textDisplay->scrollToBottom();
 	}
 }
 
-bool ccConsole::setLogFile(QString filename)
+void ccConsole::logMessage(const Message& message)
 {
-	//close previous stream (if any)
+	m_mutex.lock();
+	m_queue.insert(message.time_ns, message);
+	m_mutex.unlock();
+
+	// error messages are displayed in a popup dialog right away (if in the main thread and if a parent widget is defined)
+	if ((message.level & LOG_ERROR) && m_parentWidget)
+	{
+		if (qApp && QThread::currentThread() == qApp->thread())
+		{
+			QMessageBox::warning(m_parentWidget, "Error", message.text);
+		}
+		else
+		{
+			QMetaObject::invokeMethod(m_parentWidget, [&]()
+			                          { QMessageBox::warning(m_parentWidget, "Error", message.text); },
+			                          Qt::QueuedConnection);
+		}
+	}
+}
+
+bool ccConsole::setLogFile(const QString& filename)
+{
+	// close previous stream (if any)
 	if (m_logStream)
 	{
-		m_mutex.lock();
+		assert(qApp && QThread::currentThread() == qApp->thread());
 		delete m_logStream;
-		m_logStream = 0;
-		m_mutex.unlock();
+		m_logStream = nullptr;
 
 		if (m_logFile.isOpen())
 		{
 			m_logFile.close();
 		}
 	}
-	
+
 	if (!filename.isEmpty())
 	{
 		m_logFile.setFileName(filename);
-		if (!m_logFile.open(QFile::Text| QFile::WriteOnly))
+		if (!m_logFile.open(QFile::Text | QFile::WriteOnly))
 		{
 			return Error(QString("[Console] Failed to open/create log file '%1'").arg(filename));
 		}
 
-		m_mutex.lock();
+		assert(qApp && QThread::currentThread() == qApp->thread());
 		m_logStream = new QTextStream(&m_logFile);
-		m_mutex.unlock();
-		setAutoRefresh(true);
 	}
-
 
 	return true;
 }

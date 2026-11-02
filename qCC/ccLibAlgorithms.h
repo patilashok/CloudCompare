@@ -1,64 +1,109 @@
-#ifndef CCLIBALGORITHMS_H
-#define CCLIBALGORITHMS_H
-//##########################################################################
-//#                                                                        #
-//#                              CLOUDCOMPARE                              #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU General Public License as published by  #
-//#  the Free Software Foundation; version 2 or later of the License.      #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: CloudCompare project                               #
-//#                                                                        #
-//##########################################################################
+#pragma once
 
-#include "ccHObject.h"
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: CloudCompare project                               #
+// #                                                                        #
+// ##########################################################################
+
+// CCCoreLib
+#include <GeometricalAnalysisTools.h>
+
+// qCC_db
+#include <ccHObject.h>
 
 class QWidget;
 
 class ccGenericPointCloud;
-
+class ccProgressDialog;
 
 namespace ccLibAlgorithms
 {
 	//! Returns a default first guess for algorithms kernel size (one cloud)
-	PointCoordinateType GetDefaultCloudKernelSize(ccGenericPointCloud* cloud, unsigned knn = 12);
-	
-	//! Returns a default first guess for algorithms kernel size (several clouds)
-	PointCoordinateType GetDefaultCloudKernelSize(const ccHObject::Container& entities, unsigned knn = 12);
-	
-	/*** CCLib "standalone" algorithms ***/
-	
-	//CCLib algorithms handled by the 'ApplyCCLibAlgorithm' method
-	enum CC_LIB_ALGORITHM { CCLIB_ALGO_CURVATURE = 1,
-							CCLIB_ALGO_SF_GRADIENT,
-							CCLIB_ALGO_ROUGHNESS,
-							CCLIB_ALGO_APPROX_DENSITY,
-							CCLIB_ALGO_ACCURATE_DENSITY,
-							CCLIB_SPHERICAL_NEIGHBOURHOOD_EXTRACTION_TEST = 255,
-						};
-	
-	//! Applies a standard CCLib algorithm (see CC_LIB_ALGORITHM) on a set of entities
-	bool ApplyCCLibAlgorithm(	CC_LIB_ALGORITHM algo,
-								ccHObject::Container& entities,
-								QWidget* parent = 0,
-								void** additionalParameters = 0);
-	
-	//! Scale matching algorithms
-	enum ScaleMatchingAlgorithm { BB_MAX_DIM, BB_VOLUME, PCA_MAX_DIM, ICP_SCALE };
-	
-	//! Applies a standard CCLib algorithm (see CC_LIB_ALGORITHM) on a set of entities
-	bool ApplyScaleMatchingAlgorithm(ScaleMatchingAlgorithm algo,
-												ccHObject::Container& entities,
-												double icpRmsDiff,
-												int icpFinalOverlap,
-												unsigned refEntityIndex = 0,
-												QWidget* parent = 0);
-}
+	double GetDefaultCloudKernelSize(ccGenericPointCloud* cloud, unsigned knn = 12);
 
-#endif
+	//! Returns a default first guess for algorithms kernel size (several clouds)
+	double GetDefaultCloudKernelSize(const ccHObject::Container& entities, unsigned knn = 12);
+
+	//! Returns the name of the scalar field that will be created by a given geometric characteristic computation
+	static QString GetCharacteristicSFName(CCCoreLib::GeometricalAnalysisTools::GeomCharacteristic algo,
+	                                       int                                                     subOption,
+	                                       PointCoordinateType                                     radius);
+
+	//! Returns the error message associated to a given GeometricalAnalysisTools::ErrorCode
+	static QString GetErrorMessage(CCCoreLib::GeometricalAnalysisTools::ErrorCode errorCode);
+
+	/*** CCCoreLib "standalone" algorithms ***/
+
+	//! Geometric characteristic (with sub option)
+	struct GeomCharacteristicWithSubOption
+	{
+		//! Default constructor
+		GeomCharacteristicWithSubOption(CCCoreLib::GeometricalAnalysisTools::GeomCharacteristic c, int option = 0)
+		    : charac(c)
+		    , subOption(option)
+		{
+		}
+
+		//! Equality operator
+		bool operator==(const GeomCharacteristicWithSubOption& other) const
+		{
+			return charac == other.charac && subOption == other.subOption;
+		}
+
+		CCCoreLib::GeometricalAnalysisTools::GeomCharacteristic charac;        //!< Geometric characteristic
+		int                                                     subOption = 0; //!< Sub option (if any)
+	};
+
+	//! Set of GeomCharacteristicWithSubOption instances
+	using GeomCharacteristicWithSubOptionSet = std::vector<GeomCharacteristicWithSubOption>;
+
+	//! Computes geometrical characteristics (see GeometricalAnalysisTools::GeomCharacteristic) on a set of entities
+	bool ComputeGeomCharacteristics(const GeomCharacteristicWithSubOptionSet& characteristics,
+	                                PointCoordinateType                       radius,
+	                                const ccHObject::Container&               entities,
+	                                const CCVector3*                          roughnessUpDir = nullptr,
+	                                QWidget*                                  parent         = nullptr);
+
+	// CCCoreLib algorithms handled by the 'ApplyCCCoreLibAlgorithm' method
+	enum CC_LIB_ALGORITHM
+	{
+		CCLIB_ALGO_SF_GRADIENT,
+	};
+
+	//! Applies a standard CCCoreLib algorithm (see CC_LIB_ALGORITHM) on a set of entities
+	bool ApplyCCLibAlgorithm(CC_LIB_ALGORITHM      algo,
+	                         ccHObject::Container& entities,
+	                         QWidget*              parent               = nullptr,
+	                         void**                additionalParameters = nullptr);
+
+	//! Scale matching algorithms
+	enum ScaleMatchingAlgorithm
+	{
+		BB_MAX_DIM,
+		BB_VOLUME,
+		PCA_MAX_DIM,
+		ICP_SCALE
+	};
+
+	//! Applies a standard CCCoreLib algorithm (see CC_LIB_ALGORITHM) on a set of entities
+	bool ApplyScaleMatchingAlgorithm(ScaleMatchingAlgorithm algo,
+	                                 ccHObject::Container&  entities,
+	                                 double                 icpRmsDiff,
+	                                 int                    icpFinalOverlap,
+	                                 unsigned               refEntityIndex = 0,
+	                                 QWidget*               parent         = nullptr,
+	                                 double                 minScale       = std::numeric_limits<double>::quiet_NaN(),
+	                                 double                 maxScale       = std::numeric_limits<double>::quiet_NaN());
+} // namespace ccLibAlgorithms

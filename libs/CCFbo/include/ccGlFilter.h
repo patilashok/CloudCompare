@@ -1,107 +1,122 @@
-//##########################################################################
-//#                                                                        #
-//#                               CCFBO                                    #
-//#                                                                        #
-//#  This program is free software; you can redistribute it and/or modify  #
-//#  it under the terms of the GNU Library General Public License as       #
-//#  published by the Free Software Foundation; version 2 or later of the License.  #
-//#                                                                        #
-//#  This program is distributed in the hope that it will be useful,       #
-//#  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
-//#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
-//#  GNU General Public License for more details.                          #
-//#                                                                        #
-//#          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
-//#                                                                        #
-//##########################################################################
+#pragma once
+// ##########################################################################
+// #                                                                        #
+// #                               CCFBO                                    #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU Library General Public License as       #
+// #  published by the Free Software Foundation; version 2 or later of the  #
+// #  License.                                                              #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
 
-#ifndef CC_GL_FILTER_HEADER
-#define CC_GL_FILTER_HEADER
+// Local
+#include "CCFbo.h"
 
-//Qt
+// Qt
 #include <QString>
+
+// System
+#include <functional>
+#include <utility>
 
 //! Default GL filter interface
 /** A GL filter is a combination of shaders applied to
-	textures (typically the rendered scene), typically
-	through intensive use of Frame Buffer Objects.
+    textures (typically the rendered scene), typically
+    through intensive use of Frame Buffer Objects.
 **/
-class ccGlFilter
+class CCFBO_LIB_API ccGlFilter
 {
-public:
-
+  public:
 	//! Default constructor
-	ccGlFilter(QString description)
-		: m_isValid(false)
-		, m_description(description)
-	{}
+	ccGlFilter(const QString& description)
+	    : m_isValid(false)
+	    , m_description(description)
+	{
+	}
 
 	//! Default destructor
-	virtual ~ccGlFilter() {}
+	virtual ~ccGlFilter() = default;
 
 	//! Returns filter name
-	inline virtual QString getDescription() const { return m_description; }
+	inline virtual QString getDescription() const
+	{
+		return m_description;
+	}
 
 	//! Cloning mechanism
 	virtual ccGlFilter* clone() const = 0;
 
 	//! Initializes GL filter
 	/** Must support reinit!
-		\param width texture/screen width
-		\param height texture/screen height
-		\param shadersPath path where shader files are stored
-		\param error error string (if an error occurred)
-		\return success
-		**/
-	virtual bool init(	unsigned width,
-						unsigned height,
-						QString shadersPath,
-						QString& error) = 0;
+	    \param width texture/screen width
+	    \param height texture/screen height
+	    \param shadersPath path where shader files are stored
+	    \param error error string (if an error occurred)
+	    \param silence whether initialization of the filter is silent (= no dialog, etc.)
+	    \param makeCurrentCallaback callback function to make the GL context current
+	    \return success
+	    **/
+	virtual bool init(unsigned               width,
+	                  unsigned               height,
+	                  const QString&         shadersPath,
+	                  QString&               error,
+	                  bool                   silent,
+	                  std::function<void()>& makeCurrentCallaback) = 0;
 
 	//! Minimal set of 3D viewport parameters that can be used by shaders
-	struct ViewportParameters
+	struct CCFBO_LIB_API ViewportParameters
 	{
 		//! Default constructor
 		ViewportParameters()
-			: zoom(1.0)
-			, perspectiveMode(false)
-			, zNear(0.0)
-			, zFar(1.0)
-		{}
+		    : perspectiveMode(false)
+		    , zNear(0.0)
+		    , zFar(1.0)
+		    , zoomFactor(1.0)
+		{
+		}
 
-		//! Zoom
-		double zoom;
 		//! Whether perspective mode is enabled or not
 		bool perspectiveMode;
-		//! Near clipping plane position (perspective mode only)
+		//! Near clipping plane position
 		double zNear;
-		//! Far clipping plane position (perspective mode only)
+		//! Far clipping plane position
 		double zFar;
+		//! Rendering zoom factor
+		float zoomFactor;
 	};
 
 	//! Applies filter to texture (depth + color)
-	virtual void shade(	unsigned texDepth,
-						unsigned texColor,
-						ViewportParameters& parameters) = 0;
+	virtual void shade(unsigned            texDepth,
+	                   unsigned            texColor,
+	                   ViewportParameters& parameters) = 0;
 
 	//! Returns resulting texture
 	virtual unsigned getTexture() = 0;
 
-protected: //methods
-
+  protected: // methods
 	//! Sets whether the filter is valid
-	inline void setValid(bool state) { m_isValid = state; }
+	inline void setValid(bool state)
+	{
+		m_isValid = state;
+	}
 
 	//! Returns whether the filter is valid
-	inline bool isValid() const { return m_isValid; }
+	inline bool isValid() const
+	{
+		return m_isValid;
+	}
 
-protected:
-
+  protected:
 	//! Filter validity
 	bool m_isValid;
 
 	//! Filter description
 	QString m_description;
 };
-
-#endif

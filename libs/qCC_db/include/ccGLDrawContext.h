@@ -1,0 +1,248 @@
+#pragma once
+
+// ##########################################################################
+// #                                                                        #
+// #                              CLOUDCOMPARE                              #
+// #                                                                        #
+// #  This program is free software; you can redistribute it and/or modify  #
+// #  it under the terms of the GNU General Public License as published by  #
+// #  the Free Software Foundation; version 2 or later of the License.      #
+// #                                                                        #
+// #  This program is distributed in the hope that it will be useful,       #
+// #  but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+// #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          #
+// #  GNU General Public License for more details.                          #
+// #                                                                        #
+// #          COPYRIGHT: EDF R&D / TELECOM ParisTech (ENST-TSI)             #
+// #                                                                        #
+// ##########################################################################
+
+// Local
+#include "ccColorBasedEntityPicking.h"
+#include "ccMaterial.h"
+
+// Qt
+#include <QOpenGLVersionFunctionsFactory>
+
+class ccGenericGLDisplay;
+class ccScalarField;
+class ccColorRampShader;
+class ccShader;
+
+//! Display parameters of a 3D entity
+struct glDrawParams
+{
+	//! Display scalar field (prioritary on colors)
+	bool showSF;
+	//! Display colors
+	bool showColors;
+	//! Display normals
+	bool showNorms;
+};
+
+//! Drawing flags (type: short)
+enum CC_DRAWING_FLAGS
+{
+	CC_DRAW_2D         = 0x0001,
+	CC_DRAW_3D         = 0x0002,
+	CC_DRAW_FOREGROUND = 0x0004,
+	CC_LIGHT_ENABLED   = 0x0008,
+	CC_SKIP_UNSELECTED = 0x0010,
+	CC_SKIP_SELECTED   = 0x0020,
+	CC_SKIP_ALL        = 0x0030, // = CC_SKIP_UNSELECTED | CC_SKIP_SELECTED
+	CC_ENTITY_PICKING  = 0x0040, // formerly named CC_DRAW_ENTITY_NAMES
+	CC_NO_SHADER       = 0x0080, // shaders should not be used to display this entity (formerly CC_DRAW_POINT_NAMES)
+	// CC_FREE_FLAG    = 0x0100, // UNUSED (formerly CC_DRAW_TRI_NAMES)
+	CC_FAST_ENTITY_PICKING = 0x0200, // formerly named CC_DRAW_FAST_NAMES_ONLY
+	// CC_FREE_FLAG        = 0x03C0, // UNUSED (formerly CC_DRAW_ANY_NAMES = CC_DRAW_ENTITY_NAMES | CC_DRAW_POINT_NAMES | CC_DRAW_TRI_NAMES)
+	CC_LOD_ACTIVATED         = 0x0400,
+	CC_VIRTUAL_TRANS_ENABLED = 0x0800
+};
+
+// Drawing flags testing macros (see ccDrawableObject)
+#define MACRO_Draw2D(context) ((context.drawingFlags & CC_DRAW_2D) != 0)
+#define MACRO_Draw3D(context) ((context.drawingFlags & CC_DRAW_3D) != 0)
+#define MACRO_Foreground(context) ((context.drawingFlags & CC_DRAW_FOREGROUND) != 0)
+#define MACRO_LightIsEnabled(context) ((context.drawingFlags & CC_LIGHT_ENABLED) != 0)
+#define MACRO_SkipUnselected(context) ((context.drawingFlags & CC_SKIP_UNSELECTED) != 0)
+#define MACRO_SkipSelected(context) ((context.drawingFlags & CC_SKIP_SELECTED) != 0)
+#define MACRO_EntityPicking(context) ((context.drawingFlags & CC_ENTITY_PICKING) != 0)
+#define MACRO_NoShader(context) ((context.drawingFlags & CC_NO_SHADER) != 0)
+#define MACRO_FastEntityPicking(context) ((context.drawingFlags & CC_FAST_ENTITY_PICKING) != 0)
+#define MACRO_LODActivated(context) ((context.drawingFlags & CC_LOD_ACTIVATED) != 0)
+#define MACRO_VirtualTransEnabled(context) ((context.drawingFlags & CC_VIRTUAL_TRANS_ENABLED) != 0)
+
+//! Display context
+struct ccGLDrawContext
+{
+	//! Drawing options (see below)
+	int drawingFlags;
+
+	//! GL screen width
+	int glW;
+	//! GL screen height
+	int glH;
+	//! Device pixel ratio (generally 1, can be 1.5 or 2 on HD displays)
+	float devicePixelRatio;
+	//! Corresponding GL window
+	ccGenericGLDisplay* display;
+
+	//! OpenGL context used to access functions for particular profiles \see glFunctions()
+	QOpenGLContext* qGLContext;
+
+	//! Current zoom (screen to file rendering mode)
+	float renderZoom;
+
+	//! Default material
+	ccMaterial::Shared defaultMat;
+	//! Default color for mesh (front side)
+	ccColor::Rgbaf defaultMeshFrontDiff;
+	//! Default color for mesh (back side)
+	ccColor::Rgbaf defaultMeshBackDiff;
+	//! Default point color
+	ccColor::Rgba pointsDefaultCol;
+	//! Default text color
+	ccColor::Rgba textDefaultCol;
+	//! Default label background color
+	ccColor::Rgba labelDefaultBkgCol;
+	//! Default label marker color
+	ccColor::Rgba labelDefaultMarkerCol;
+	//! Default bounding-box color
+	ccColor::Rgba bbDefaultCol;
+
+	//! Whether to decimate big clouds when updating the 3D view
+	bool decimateCloudOnMove;
+	//! Minimum number of points for activating LOD display
+	unsigned minLODPointCount;
+	//! Current level for LOD display
+	unsigned char currentLODLevel;
+	//! Whether more points are available or not at the current level
+	bool moreLODPointsAvailable;
+	//! Whether higher levels are available or not
+	bool higherLODLevelsAvailable;
+
+	//! Whether to decimate big meshes when rotating the camera
+	bool decimateMeshOnMove;
+	//! Minimum number of triangles for activating LOD display
+	unsigned minLODTriangleCount;
+
+	//! Currently displayed color scale (the corresponding scalar field in fact)
+	ccScalarField* sfColorScaleToDisplay;
+
+	//! Shader for fast dynamic color ramp lookup
+	ccColorRampShader* colorRampShader;
+	//! Custom rendering shader (OpenGL 3.3+)
+	ccShader* customRenderingShader;
+	//! Use VBOs for faster display
+	bool useVBOs;
+
+	//! Label marker size (radius)
+	float labelMarkerSize;
+	//! Shift for 3D label marker display (around the marker, in pixels)
+	float labelMarkerTextShift_pix;
+
+	//! Numerical precision (for displaying text)
+	unsigned dispNumberPrecision;
+
+	//! Label background opacity
+	unsigned labelOpacity;
+
+	//! Blending strategy (source)
+	GLenum sourceBlend;
+	//! Blending strategy (destination)
+	GLenum destBlend;
+
+	//! Stereo pass index
+	unsigned stereoPassIndex;
+
+	//! Whether to draw rounded points (instead of squares)
+	bool drawRoundedPoints;
+
+	//! Entity picking mechanism
+	ccColorBasedEntityPicking entityPicking;
+
+	// Default constructor
+	ccGLDrawContext()
+	    : drawingFlags(0)
+	    , glW(0)
+	    , glH(0)
+	    , devicePixelRatio(1.0f)
+	    , display(nullptr)
+	    , qGLContext(nullptr)
+	    , renderZoom(1.0f)
+	    , defaultMat(new ccMaterial("default"))
+	    , defaultMeshFrontDiff(ccColor::defaultMeshFrontDiff)
+	    , defaultMeshBackDiff(ccColor::defaultMeshBackDiff)
+	    , pointsDefaultCol(ccColor::defaultColor)
+	    , textDefaultCol(ccColor::defaultColor)
+	    , labelDefaultBkgCol(ccColor::defaultLabelBkgColor)
+	    , labelDefaultMarkerCol(ccColor::defaultLabelMarkerColor)
+	    , bbDefaultCol(ccColor::yellow)
+	    , decimateCloudOnMove(true)
+	    , minLODPointCount(10000000)
+	    , currentLODLevel(0)
+	    , moreLODPointsAvailable(false)
+	    , higherLODLevelsAvailable(false)
+	    , decimateMeshOnMove(true)
+	    , minLODTriangleCount(2500000)
+	    , sfColorScaleToDisplay(nullptr)
+	    , colorRampShader(nullptr)
+	    , customRenderingShader(nullptr)
+	    , useVBOs(true)
+	    , labelMarkerSize(5)
+	    , labelMarkerTextShift_pix(5)
+	    , dispNumberPrecision(6)
+	    , labelOpacity(100)
+	    , sourceBlend(GL_SRC_ALPHA)
+	    , destBlend(GL_ONE_MINUS_SRC_ALPHA)
+	    , stereoPassIndex(0)
+	    , drawRoundedPoints(false)
+	{
+	}
+
+	//! Returns the OpenGL functions for a given profile (or nullptr if not available)
+	template <class TYPE>
+	TYPE* glFunctions() const
+	{
+		return qGLContext ? QOpenGLVersionFunctionsFactory::get<TYPE>(qGLContext) : 0;
+	}
+
+	//! Catches GL errors and logs them
+	static bool CatchGLErrors(GLenum err, const char* context)
+	{
+		// catch GL errors
+		{
+			// see http://www.opengl.org/sdk/docs/man/xhtml/glGetError.xml
+			switch (err)
+			{
+			case GL_NO_ERROR:
+				return false;
+			case GL_INVALID_ENUM:
+				ccLog::Warning(QString("[%1] OpenGL error: invalid enumerator").arg(context));
+				break;
+			case GL_INVALID_VALUE:
+				ccLog::Warning(QString("[%1] OpenGL error: invalid value").arg(context));
+				break;
+			case GL_INVALID_OPERATION:
+				ccLog::Warning(QString("[%1] OpenGL error: invalid operation").arg(context));
+				break;
+			case GL_STACK_OVERFLOW:
+				ccLog::Warning(QString("[%1] OpenGL error: stack overflow").arg(context));
+				break;
+			case GL_STACK_UNDERFLOW:
+				ccLog::Warning(QString("[%1] OpenGL error: stack underflow").arg(context));
+				break;
+			case GL_OUT_OF_MEMORY:
+				ccLog::Warning(QString("[%1] OpenGL error: out of memory").arg(context));
+				break;
+			case GL_INVALID_FRAMEBUFFER_OPERATION:
+				ccLog::Warning(QString("[%1] OpenGL error: invalid framebuffer operation").arg(context));
+				break;
+			}
+		}
+
+		return true;
+	}
+};
+
+using CC_DRAW_CONTEXT = ccGLDrawContext;
